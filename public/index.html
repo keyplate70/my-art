@@ -3,165 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interactive Art - Auto Stream Edition</title>
-    <script src="https://pixijs.download/release/v7.4.2/pixi.min.js"></script>
+    <title>Interactive Art - Total Integrated Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; display: flex; flex-direction: column; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; }
         
+        /* 레이아웃 설정 */
         #art-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
         #text-section { position: absolute; left: 5%; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 25px; pointer-events: none; opacity: 0; transition: opacity 2s ease; }
         
-        /* 인트로 레이어 */
+        /* 인트로 클릭 레이어 */
         #intro-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #121212; z-index: 200;
             display: flex; justify-content: center; align-items: center;
             cursor: pointer; transition: opacity 1.5s ease;
         }
-        .enter-text { color: #F7F8F6; font-size: 12px; letter-spacing: 0.6em; animation: pulse 2s infinite; }
+        .enter-text { color: #F7F8F6; font-size: 12px; letter-spacing: 0.6em; animation: pulse 2s infinite; text-align: center; }
         @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
         .hidden { opacity: 0 !important; pointer-events: none; }
-
-        .word-item { color: #F7F8F6; font-size: clamp(12px, 4vw, 24px); letter-spacing: 0.15em; font-weight: bold; border-left: 3px solid rgba(247, 248, 246, 0.4); padding-left: 15px; white-space: nowrap; text-transform: uppercase; }
-        .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.05; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
-        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,2%); } }
-    </style>
-</head>
-<body>
-    <div class="grain"></div>
-    
-    <div id="intro-overlay">
-        <div class="enter-text">CLICK TO INITIALIZE SYSTEM</div>
-    </div>
-
-    <div id="art-section"></div>
-    
-    <div id="text-section">
-        <div id="word-1" class="word-item">LOADING...</div>
-        <div id="word-2" class="word-item">LOADING...</div>
-        <div id="word-3" class="word-item">LOADING...</div>
-        <div id="word-4" class="word-item">LOADING...</div>
-    </div>
-
-    <script>
-        // --- 1. 데이터 정의 ---
-        const groups = {
-            "word-1": ["KEY","CORE","AXIS","ORIGIN","PRIME","ROOT","BASE","INDEX","SOURCE","DATUM"],
-            "word-2": ["PLATE","FIELD","SURFACE","LAYER","GRID","PLANE","MATRIX","PANEL","SLAB"],
-            "word-3": ["PRINT","PRESS","IMPRINT","ETCH","STAMP","CAST","TRACE","MARK","OFFSET"],
-            "word-4": ["NOISE","GRAIN","SHIFT","BIAS","DELTA","ERROR","DRIFT","70","1970"]
-        };
-
-        let isStarted = false;
-        let speed = 0;
-        let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
-
-        // --- 2. 오디오 시스템 (Low-Pass Filter & Noise) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let noiseGain, humFilter;
-
-        function initAudio() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    // 노드들이 이미 생성되어 있다면 중복 생성 방지
-    if (isStarted) return; 
-    
-    // ... 나머지 오디오 생성 로직 ...
-}
-            
-            // Background Hum
-            const osc = audioCtx.createOscillator();
-            const humGain = audioCtx.createGain();
-            humFilter = audioCtx.createBiquadFilter();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(55, audioCtx.currentTime);
-            humFilter.type = 'lowpass';
-            humFilter.frequency.setValueAtTime(150, audioCtx.currentTime);
-            humGain.gain.setValueAtTime(0.015, audioCtx.currentTime);
-            osc.connect(humFilter); humFilter.connect(humGain); humGain.connect(audioCtx.destination);
-            osc.start();
-
-            // Static White Noise
-            const bufferSize = audioCtx.sampleRate * 2;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer; noise.loop = true;
-            noiseGain = audioCtx.createGain();
-            const nFilter = audioCtx.createBiquadFilter();
-            nFilter.type = 'bandpass';
-            nFilter.frequency.setValueAtTime(800, audioCtx.currentTime);
-            noiseGain.gain.setValueAtTime(0.005, audioCtx.currentTime);
-            noise.connect(nFilter); nFilter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
-            noise.start();
-        }
-
-        function playBeep(freq, dur) {
-            if (!isStarted) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + dur);
-        }
-
-        // --- 3. PIXI 비주얼 엔진 ---
-        const app = new PIXI.Application({ 
-            backgroundColor: 0x121212, antialias: true,
-            resolution: window.devicePixelRatio || 1, autoDensity: true,
-            resizeTo: document.getElementById('art-section') 
-        });
-        document.getElementById('art-section').appendChild(app.view);
-
-        const graphics = new PIXI.Graphics();
-        const blurFilter = new PIXI.filters.BlurFilter();
-        const noiseFilter = new PIXI.filters.NoiseFilter();
-        graphics.filters = [blurFilter, noiseFilter];
-        app.stage.addChild(graphics);
-
-        function drawAbstract(t) {
-            graphics.clear();
-            if (!isStarted) return;
-
-            graphics.lineStyle(1.5, 0xF7F8F6, 0.5); // 영상 속 미니멀한 라인 스타일
-            const cx = app.screen.width / 2;
-            const cy = app.screen.height / 2;
-            const r = Math.min(app.screen.width, app.screen.height) * 0.28;
-
-            graphics.moveTo(cx + Math.cos(t) * r, cy + Math.sin(t) * r);
-            for (let i = 0; i <= 12; i++) {
-                const angle = (i / 12) * Math.PI * 2 + t * 0.3;
-                const offset = r + Math.sin(t * 2 + i) * (speed * 0.4);
-                const x = cx + Math.cos(angle) * offset;
-                const y = cy + Math.sin(angle) * offset;
-                graphics.lineTo(x, y);
-                graphics.drawCircle(x, y, 1.2);
-            }
-        }
-
-        app.ticker.add(() => {
-            const t = app.ticker.lastTime / 1000;
-            drawAbstract(t);
-            blurFilter.blur = Math.min(speed * 0.25, 12);
-            noiseFilter.noise = Math.min(speed * 0.012, 0.35);
-            if (isStarted) {
-                noiseGain.gain.setTargetAtTime(0.005 + (speed * 0.0015), audioCtx.currentTime, 0.1);
-                humFilter.frequency.setTargetAtTime(150 + (speed * 2.5), audioCtx.currentTime, 0.1);
-            }
-            speed *= 0.92;
-        });
-
-        // --- 4. 자동 셔플 및 제어 로직 ---
-        function runShuffle(id, delay) {
-            const el = document.getElementById(id);
-            const list = groups[id];
-            const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            setTimeout(() => {
-                let count = 0;
-                const inv = setInterval(() => {
-                    el.innerText = Array
