@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Words Combination</title>
+    <title>Interactive Art - Large Scale</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; 
             background-color: #121212; 
             display: flex; justify-content: center; align-items: center; height: 100vh;
-            font-family: 'Pretendard', sans-serif; /* 폰트는 취향에 맞게 변경 가능 */
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
         }
-        /* 단어들이 표시될 레이어 설정 */
+        /* 단어 레이어: 여백을 조금 더 줌 */
         .word-layer {
             position: fixed; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
-            color: rgba(255, 255, 255, 0.4); /* 글자색 및 투명도 */
-            font-size: 14px; letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px; letter-spacing: 3px; font-weight: 300;
         }
         .word-item {
-            position: absolute; transition: opacity 1s ease-in-out; opacity: 0;
+            position: absolute; transition: opacity 1.5s ease-in-out; opacity: 0;
         }
         .grain {
             position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
@@ -37,34 +37,34 @@
 <body>
     <div class="grain"></div>
     <div class="word-layer">
-        <div id="word-1" class="word-item" style="top: 10%; left: 10%;"></div>
-        <div id="word-2" class="word-item" style="top: 10%; right: 10%;"></div>
-        <div id="word-3" class="word-item" style="bottom: 10%; left: 10%;"></div>
-        <div id="word-4" class="word-item" style="bottom: 10%; right: 10%;"></div>
+        <div id="word-1" class="word-item" style="top: 15%; left: 15%;"></div>
+        <div id="word-2" class="word-item" style="top: 15%; right: 15%;"></div>
+        <div id="word-3" class="word-item" style="bottom: 15%; left: 15%;"></div>
+        <div id="word-4" class="word-item" style="bottom: 15%; right: 15%;"></div>
     </div>
     <div id="art-container"></div>
 
     <script>
-        // 1. 단어 조합 시스템
-        const words = ["현상", "기억", "흐름", "조각", "공간", "시선", "순간", "진동", "무의식", "연결"];
+        // 1. 단어 조합 시스템 (리스트를 자유롭게 수정하세요)
+        const words = ["현상", "기억", "흐름", "조각", "공간", "시선", "순간", "진동", "무의식", "연결", "잔상", "궤적"];
         
         function updateWords() {
             for (let i = 1; i <= 4; i++) {
                 const element = document.getElementById(`word-${i}`);
-                element.style.opacity = 0; // 페이드 아웃
+                element.style.opacity = 0;
                 
                 setTimeout(() => {
-                    const randomWord1 = words[Math.floor(Math.random() * words.length)];
-                    const randomWord2 = words[Math.floor(Math.random() * words.length)];
-                    element.innerText = `${randomWord1} / ${randomWord2}`;
-                    element.style.opacity = 1; // 페이드 인
-                }, 1000);
+                    const w1 = words[Math.floor(Math.random() * words.length)];
+                    const w2 = words[Math.floor(Math.random() * words.length)];
+                    element.innerText = `${w1} : ${w2}`;
+                    element.style.opacity = 1;
+                }, 1500);
             }
         }
-        setInterval(updateWords, 4000); // 4초마다 단어 교체
+        setInterval(updateWords, 5000);
         updateWords();
 
-        // 2. PIXI 아트워크 설정 (기존 안정화 코드 유지)
+        // 2. PIXI 설정
         const app = new PIXI.Application({ 
             width: window.innerWidth, height: window.innerHeight, 
             backgroundColor: 0x121212, resizeTo: window, antialias: true 
@@ -78,13 +78,19 @@
         function resize() {
             sprite.x = app.screen.width / 2;
             sprite.y = app.screen.height / 2;
-            const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
+
+            // 사이즈 대폭 확대: 화면의 95% 수준으로 맞춤
+            const targetWidth = app.screen.width * 0.95;
+            const targetHeight = app.screen.height * 0.95;
+            
+            const scale = Math.min(targetWidth / sprite.texture.width, targetHeight / sprite.texture.height);
             sprite.scale.set(scale);
         }
 
         sprite.texture.baseTexture.on('loaded', resize);
         window.addEventListener('resize', resize);
 
+        // 3. 일렁임 효과 (안정적인 수치 적용)
         const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
         displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
@@ -92,8 +98,8 @@
         sprite.filters = [displacementFilter];
 
         window.addEventListener('mousemove', (e) => {
-            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 45;
-            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 45;
+            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 50;
+            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 50;
         });
     </script>
 </body>
