@@ -1,44 +1,92 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Interactive Art</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Art - Centralized</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
+        /* 배경색을 #121212로 고정하고 여백을 없앱니다 */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            background-color: #121212; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
         .grain {
             position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
             background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png');
-            opacity: 0.1; pointer-events: none; z-index: 100; animation: noise 0.2s infinite;
+            opacity: 0.06; pointer-events: none; z-index: 100;
+            animation: noise 0.2s infinite;
         }
         @keyframes noise {
-            0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); }
-            50% { transform: translate(-10%,5%); } 100% { transform: translate(5%,0); }
+            0% { transform: translate(0,0); }
+            10% { transform: translate(-5%,-5%); }
+            50% { transform: translate(-10%,5%); }
+            100% { transform: translate(5%,0); }
         }
     </style>
 </head>
 <body>
     <div class="grain"></div>
-    <div id="canvas-container"></div>
+    <div id="art-container"></div>
+
     <script>
-        const app = new PIXI.Application({ width: window.innerWidth, height: window.innerHeight, backgroundColor: 0x000000, resizeTo: window });
-        document.getElementById('canvas-container').appendChild(app.view);
-        const sprite = PIXI.Sprite.from('1.png');
-        sprite.anchor.set(0.5);
-        sprite.x = app.screen.width / 2; sprite.y = app.screen.height / 2;
-        sprite.texture.baseTexture.on('loaded', () => {
-            const ratio = Math.max(app.screen.width / sprite.texture.width, app.screen.height / sprite.texture.height);
-            sprite.scale.set(ratio);
+        // 1. 캔버스 생성 (배경색 #121212 반영 및 해상도 대응)
+        const app = new PIXI.Application({ 
+            width: window.innerWidth, 
+            height: window.innerHeight, 
+            backgroundColor: 0x121212, 
+            resizeTo: window,
+            antialias: true
         });
+        document.getElementById('art-container').appendChild(app.view);
+
+        // 2. 이미지 로드 (원하는 이미지 주소로 교체 가능)
+        const sprite = PIXI.Sprite.from('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564');
+        sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
-        const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
+
+        // 3. 해상도에 맞춰 이미지를 중앙에 배치하고 크기를 조절하는 함수
+        function resize() {
+            sprite.x = app.screen.width / 2;
+            sprite.y = app.screen.height / 2;
+
+            // 화면 비례에 맞춰 이미지가 꽉 차도록 계산 (CSS의 background-size: cover와 동일)
+            const screenRatio = app.screen.width / app.screen.height;
+            const imageRatio = sprite.texture.width / sprite.texture.height;
+
+            if (screenRatio > imageRatio) {
+                sprite.width = app.screen.width;
+                sprite.scale.y = sprite.scale.x;
+            } else {
+                sprite.height = app.screen.height;
+                sprite.scale.x = sprite.scale.y;
+            }
+        }
+
+        // 이미지 로딩 완료 시 실행
+        sprite.texture.baseTexture.on('loaded', resize);
+        // 창 크기가 바뀔 때마다 실행
+        window.addEventListener('resize', resize);
+
+        // 4. 마우스 일렁임 효과 (Displacement Map)
+        const displacementSprite = PIXI.Sprite.from('1.ㅔㅜㅎ');
         displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
         app.stage.addChild(displacementSprite);
         sprite.filters = [displacementFilter];
+
         window.addEventListener('mousemove', (e) => {
-            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 8;
-            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 8;
+            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 10;
+            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 10;
         });
     </script>
 </body>
