@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Smooth & Colorful</title>
+    <title>Interactive Art - Mouse Reactive Color</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
@@ -44,25 +44,34 @@
         sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
 
-        // --- 실시간 비율 조절 및 색상 변화 로직 ---
-        let count = 0;
+        // 마우스 좌표 저장용 변수
+        let mouseX = 0.5;
+        let mouseY = 0.5;
+
+        // 마우스 움직임 감지
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX / window.innerWidth;
+            mouseY = e.clientY / window.innerHeight;
+        });
+
         app.ticker.add(() => {
-            // 1. 자연스러운 위치/비율 유지
+            // 1. 부드러운 비율 유지
             sprite.x = app.screen.width / 2;
             sprite.y = app.screen.height / 2;
             const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
             sprite.scale.set(scale);
 
-            // 2. 은은한 색상 변화 (Hue 변경)
-            count += 0.005; // 색상 변화 속도 (낮을수록 천천히)
-            // 흰색 이미지에 tint를 적용해 파스텔 톤으로 회전시킵니다.
-            const r = Math.sin(count) * 20 + 235;
-            const g = Math.sin(count + 2) * 20 + 235;
-            const b = Math.sin(count + 4) * 20 + 235;
+            // 2. 마우스 반응형 색상 (Tint)
+            // 마우스 X축은 Red/Green에 영향을 주고, Y축은 Blue에 영향을 줍니다.
+            // 베이스 값을 200 이상으로 잡아 너무 어두워지지 않게 조절했습니다.
+            const r = Math.floor(200 + mouseX * 55); 
+            const g = Math.floor(255 - mouseX * 55);
+            const b = Math.floor(200 + mouseY * 55);
+            
             sprite.tint = (r << 16) + (g << 8) + b;
         });
 
-        // 나머지 스톱워치 및 필터 로직 동일
+        // 텍스트 슬롯머신 로직
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789X$/+";
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
@@ -74,14 +83,12 @@
                     let randomStr = "";
                     for(let i=0; i<10; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
                     element.innerText = randomStr;
-                    element.style.color = "#F9F9F9"; 
                     iterations++;
                     if (iterations >= maxIterations) {
                         clearInterval(interval);
                         const w1 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
                         const w2 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
                         element.innerText = `${w1} : ${w2}`;
-                        element.style.color = "#F7F8F6"; 
                     }
                 }, 40);
             }, delay);
@@ -90,6 +97,7 @@
         setInterval(triggerAll, 9000); 
         triggerAll();
 
+        // 일렁임 필터
         const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
         displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
