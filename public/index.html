@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Motion Blur Edition</title>
+    <title>Interactive Art - Motion Blur Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@latest/dist/pixi-filters.js"></script>
     <style>
@@ -25,7 +25,7 @@
     </div>
 
     <script>
-        const RESET_INTERVAL = 5000;
+        const RESET_INTERVAL = 5000; // 5초 주기 리셋
         const SHUFFLE_SPEED = 35;
 
         const groups = {
@@ -41,54 +41,61 @@
         });
         document.getElementById('art-container').appendChild(app.view);
 
+        // 이미지 로드
         const sprite = PIXI.Sprite.from('1.png');
         sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
 
-        // --- 필터 설정 ---
-        // 1. 일렁임 필터
+        // 필터 초기화
+        let motionBlurFilter;
+        let displacementFilter;
+
+        // 일렁임 효과용 맵
         const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
         displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
-        const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
+        displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
         app.stage.addChild(displacementSprite);
 
-        // 2. 모션 블러 필터 (새로 추가)
-        const motionBlurFilter = new PIXI.filters.MotionBlurFilter([0, 0], 15);
-        
-        sprite.filters = [displacementFilter, motionBlurFilter];
+        // 모션 블러 필터 적용 (라이브러리 로드 확인 후 실행)
+        if (PIXI.filters.MotionBlurFilter) {
+            motionBlurFilter = new PIXI.filters.MotionBlurFilter([0, 0], 15);
+            sprite.filters = [displacementFilter, motionBlurFilter];
+        } else {
+            sprite.filters = [displacementFilter];
+            console.warn("MotionBlurFilter library not loaded.");
+        }
 
         let lastMouseX = 0, lastMouseY = 0;
         let mouseVelocityX = 0, mouseVelocityY = 0;
 
         window.addEventListener('mousemove', (e) => {
-            // 마우스 속도 계산 (현재 위치 - 이전 위치)
+            // 속도 계산
             mouseVelocityX = e.clientX - lastMouseX;
             mouseVelocityY = e.clientY - lastMouseY;
-            
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            // 일렁임 필터 위치 조절
+            // 일렁임 필터 조절
             displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 40;
             displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 40;
         });
 
         app.ticker.add(() => {
+            // 중앙 배치 및 비율
             sprite.x = app.screen.width / 2;
             sprite.y = app.screen.height / 2;
             const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
             sprite.scale.set(scale);
 
-            // 모션 블러 강도 조절 (속도에 비례, 서서히 감쇄)
-            motionBlurFilter.velocity.x = mouseVelocityX * 0.5;
-            motionBlurFilter.velocity.y = mouseVelocityY * 0.5;
-            
-            // 마우스가 멈췄을 때 블러가 자연스럽게 사라지도록 속도 감쇄
-            mouseVelocityX *= 0.9;
-            mouseVelocityY *= 0.9;
+            // 모션 블러 업데이트
+            if (motionBlurFilter) {
+                motionBlurFilter.velocity.x = mouseVelocityX * 0.6;
+                motionBlurFilter.velocity.y = mouseVelocityY * 0.6;
+            }
 
-            // 색상은 흰색 원본 유지 (요청에 따라 색상 변화 제거)
-            sprite.tint = 0xFFFFFF; 
+            // 속도 감쇄 (마우스 멈추면 블러도 멈춤)
+            mouseVelocityX *= 0.85;
+            mouseVelocityY *= 0.85;
         });
 
         // --- 단어 셔플 로직 ---
@@ -98,31 +105,7 @@
             const currentGroup = groups[elementId];
             setTimeout(() => {
                 let iterations = 0;
-                const maxIterations = 25;
+                const maxIterations = 20;
                 const interval = setInterval(() => {
                     let randomStr = "";
-                    for(let i=0; i<8; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
-                    element.innerText = randomStr;
-                    iterations++;
-                    if (iterations >= maxIterations) {
-                        clearInterval(interval);
-                        const w1 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
-                        const w2 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
-                        element.innerText = `${w1} : ${w2}`;
-                    }
-                }, SHUFFLE_SPEED);
-            }, delay);
-        }
-
-        function triggerAll() {
-            startSlotMachine("word-1", 0);
-            startSlotMachine("word-2", 200);
-            startSlotMachine("word-3", 400);
-            startSlotMachine("word-4", 600);
-        }
-
-        setInterval(triggerAll, RESET_INTERVAL); 
-        triggerAll();
-    </script>
-</body>
-</html>
+                    for(let i=0; i<8; i++) randomStr += chars[Math.floor(Math.random() * chars
