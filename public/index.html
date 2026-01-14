@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Bright Typography</title>
+    <title>Interactive Art - Grouped Words</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { 
@@ -18,14 +18,13 @@
             display: flex; flex-direction: column; gap: 30px;
         }
         .word-item {
-            /* 기본 스타일: #F7F8F6 적용 (매우 밝은 아이보리 화이트) */
             color: #F7F8F6; 
-            font-size: 15px; 
+            font-size: 28px; 
             letter-spacing: 3px;
             font-weight: bold;
-            border-left: 4px solid rgba(247, 248, 246, 0.2); /* 선도 텍스트색에 맞춰 연하게 */
+            border-left: 4px solid rgba(247, 248, 246, 0.2);
             padding-left: 25px;
-            min-width: 500px;
+            min-width: 600px;
             text-transform: uppercase;
             transition: color 0.3s ease;
         }
@@ -44,19 +43,28 @@
 <body>
     <div class="grain"></div>
     <div class="word-container">
-        <div id="word-1" class="word-item">LOADING...</div>
-        <div id="word-2" class="word-item">LOADING...</div>
-        <div id="word-3" class="word-item">LOADING...</div>
-        <div id="word-4" class="word-item">LOADING...</div>
+        <div id="word-1" class="word-item">READY</div>
+        <div id="word-2" class="word-item">READY</div>
+        <div id="word-3" class="word-item">READY</div>
+        <div id="word-4" class="word-item">READY</div>
     </div>
     <div id="art-container"></div>
 
     <script>
-        const words = ["DIMENSION", "FRAGMENT", "TRACE", "MEMORY", "MOTION", "VOID", "SIGNAL", "SYNC", "CORE", "FLOW", "OBJECT", "DATA", "SOURCE", "HYBRID"];
+        // --- [수정 구간] 각 열에 들어갈 단어들을 그룹별로 입력하세요 ---
+        const groups = {
+            "word-1": ["key", "core", "axis", "origin", "prime", "root", "base", "index", "source", "datum", "threshold", "pivot", "anchor"], // 1열 단어들
+            "word-2": ["plate", "sheet", "field", "surface", "layer", "grid", "plane", "matrix", "panel", "slab", "substrate", "bed", "facet"], // 2열 단어들
+            "word-3": ["print", "press", "imprint", "etch", "stamp", "cast", "trace", "mark", "engrave", "offset", "expose"], // 3열 단어들
+            "word-4": ["noise", "grain", "shift", "bias", "delta", "variance", "error", "drift", "blur", "static", "jitter"]  // 4열 단어들
+        };
+        // -------------------------------------------------------
+
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789X$/+";
 
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
+            const currentGroup = groups[elementId]; // 해당 열의 그룹 선택
             
             setTimeout(() => {
                 let iterations = 0;
@@ -66,18 +74,17 @@
                     let randomStr = "";
                     for(let i=0; i<10; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
                     element.innerText = randomStr;
-                    
-                    // 애니메이션 중 색상: #F9F9F9 적용 (순백색에 가까운 화이트)
                     element.style.color = "#F9F9F9"; 
                     
                     iterations++;
                     if (iterations >= maxIterations) {
                         clearInterval(interval);
-                        const w1 = words[Math.floor(Math.random() * words.length)];
-                        const w2 = words[Math.floor(Math.random() * words.length)];
-                        element.innerText = `${w1} : ${w2}`;
                         
-                        // 결과값 색상: #F7F8F6로 복귀
+                        // 해당 그룹 내에서만 랜덤으로 2개 선택
+                        const w1 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
+                        const w2 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
+                        
+                        element.innerText = `${w1} : ${w2}`;
                         element.style.color = "#F7F8F6"; 
                     }
                 }, 40);
@@ -91,9 +98,10 @@
             startSlotMachine("word-4", 1200);
         }
 
-        setInterval(triggerAll, 9000); 
+        setInterval(triggerAll, 6000); 
         triggerAll();
 
+        // PixiJS 캔버스 설정 (기존과 동일)
         const app = new PIXI.Application({ 
             width: window.innerWidth, height: window.innerHeight, 
             backgroundColor: 0x121212, resizeTo: window, antialias: true 
