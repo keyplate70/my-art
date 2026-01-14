@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Particle & Speed</title>
+    <title>Interactive Art - 5s Reset Cycle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
         .word-container { position: fixed; left: 5%; top: 50%; transform: translateY(-50%); z-index: 10; pointer-events: none; display: flex; flex-direction: column; gap: 25px; }
-        .word-item { color: #F7F8F6; font-size: 24px; letter-spacing: 3px; font-weight: bold; border-left: 4px solid rgba(247, 248, 246, 0.2); padding-left: 20px; min-width: 500px; text-transform: uppercase; transition: color 0.3s ease; }
+        .word-item { color: #F7F8F6; font-size: 24px; letter-spacing: 3px; font-weight: bold; border-left: 4px solid rgba(247, 248, 246, 0.2); padding-left: 20px; min-width: 500px; text-transform: uppercase; }
         .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.04; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
         @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(5%,5%); } }
     </style>
@@ -16,18 +16,19 @@
 <body>
     <div class="grain"></div>
     <div class="word-container">
-        <div id="word-1" class="word-item">SYNC...</div>
-        <div id="word-2" class="word-item">SYNC...</div>
-        <div id="word-3" class="word-item">SYNC...</div>
-        <div id="word-4" class="word-item">SYNC...</div>
+        <div id="word-1" class="word-item">READY</div>
+        <div id="word-2" class="word-item">READY</div>
+        <div id="word-3" class="word-item">READY</div>
+        <div id="word-4" class="word-item">READY</div>
     </div>
     <div id="art-container"></div>
 
     <script>
-        // --- [설정 구간: 속도 조절] ---
-        const SHUFFLE_SPEED = 30;    // 숫자가 작을수록 글자가 더 빠르게 바뀝니다 (기존 40)
-        const RESET_INTERVAL = 5000; // 단어가 새로 고침되는 주기 (8초)
-        // ---------------------------
+        // --- [설정 구간] ---
+        const RESET_INTERVAL = 5000;  // 리셋 주기: 5초 (단어 완성 후 다음 시작까지)
+        const SHUFFLE_SPEED = 30;     // 셔플 속도: 숫자가 작을수록 빠름
+        const PARTICLE_SIZE_MAX = 12; // 파티클 최대 크기 (더 크게 키움)
+        // ------------------
 
         const groups = {
             "word-1": ["MEMORY", "TRACE", "VOID", "SIGNAL"], 
@@ -46,106 +47,26 @@
         sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
 
-        // 파티클 저장을 위한 배열 및 컨테이너
         const particles = [];
         const particleContainer = new PIXI.Container();
         app.stage.addChild(particleContainer);
 
         let mouseX = 0.5, mouseY = 0.5;
-        let absMouseX = 0, absMouseY = 0;
 
         window.addEventListener('mousemove', (e) => {
             mouseX = e.clientX / window.innerWidth;
             mouseY = e.clientY / window.innerHeight;
-            absMouseX = e.clientX;
-            absMouseY = e.clientY;
-
-            // 마우스 이동 시 파티클 생성
-            createParticle(e.clientX, e.clientY);
+            for(let i=0; i<3; i++) createParticle(e.clientX, e.clientY);
         });
 
         function createParticle(x, y) {
             const p = new PIXI.Graphics();
-            p.beginFill(0xFFFFFF, Math.random() * 0.5 + 0.3); // 하얀 가루
-            p.drawCircle(0, 0, Math.random() * 2 + 1);      // 크기 랜덤
+            const size = Math.random() * PARTICLE_SIZE_MAX + 2;
+            p.beginFill(0xFFFFFF, Math.random() * 0.3 + 0.2); 
+            p.drawCircle(0, 0, size);
             p.endFill();
-            p.x = x;
-            p.y = y;
-            p.vx = (Math.random() - 0.5) * 2; // X축 속도
-            p.vy = (Math.random() - 0.5) * 2; // Y축 속도
-            p.alpha = 1;
-            particleContainer.addChild(p);
-            particles.push(p);
-        }
-
-        app.ticker.add(() => {
-            sprite.x = app.screen.width / 2;
-            sprite.y = app.screen.height / 2;
-            const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
-            sprite.scale.set(scale);
-
-            // 색상 변화 (기존 로직 유지)
-            const r = Math.floor(100 + mouseX * 155); 
-            const g = Math.floor(100 + (1 - mouseY) * 155);
-            const b = Math.floor(255 - (mouseX * 120 + mouseY * 120));
-            sprite.tint = (r << 16) + (g << 8) + b;
-
-            // 파티클 애니메이션 처리
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.alpha -= 0.01; // 서서히 사라짐
-                if (p.alpha <= 0) {
-                    particleContainer.removeChild(p);
-                    particles.splice(i, 1);
-                }
-            }
-        });
-
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789X$/+";
-        function startSlotMachine(elementId, delay) {
-            const element = document.getElementById(elementId);
-            const currentGroup = groups[elementId];
-            setTimeout(() => {
-                let iterations = 0;
-                const maxIterations = 25 + Math.random() * 15;
-                const interval = setInterval(() => {
-                    let randomStr = "";
-                    for(let i=0; i<10; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
-                    element.innerText = randomStr;
-                    iterations++;
-                    if (iterations >= maxIterations) {
-                        clearInterval(interval);
-                        const w1 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
-                        const w2 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
-                        element.innerText = `${w1} : ${w2}`;
-                    }
-                }, SHUFFLE_SPEED); // 수정된 셔플 속도 적용
-            }, delay);
-        }
-
-        function triggerAll() {
-            startSlotMachine("word-1", 0);
-            startSlotMachine("word-2", 300);
-            startSlotMachine("word-3", 600);
-            startSlotMachine("word-4", 900);
-        }
-
-        setInterval(triggerAll, RESET_INTERVAL); 
-        triggerAll();
-
-        // 일렁임 필터 유지
-        const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
-        displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
-        const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
-        app.stage.addChild(displacementSprite);
-        sprite.filters = [displacementFilter];
-
-        window.addEventListener('mousemove', (e) => {
-            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 55;
-            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 55;
-        });
-    </script>
-</body>
-</html>
+            p.x = x + (Math.random() - 0.5) * 15;
+            p.y = y + (Math.random() - 0.5) * 15;
+            p.vx = (Math.random() - 0.5) * 2;
+            p.vy = (Math.random() - 0.5) * 2;
+            p.alpha =
