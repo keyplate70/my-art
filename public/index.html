@@ -3,147 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>K70 Core Stage - Immediate</title>
+    <title>Interactive Art - Lo-Fi Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
-        /* 모든 진입 레이어 제거 */
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100vh; font-family: 'Arial Black', 'Impact', sans-serif; touch-action: none; color: #F7F8F6; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; display: flex; flex-direction: column; }
         
-        #art-section { position: absolute; inset: 0; z-index: 5; }
+        /* [PC 레이아웃] 오버레이 방식 */
+        #art-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        #text-section { position: absolute; left: 5%; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 25px; pointer-events: none; }
         
-        /* 데이터 UI 상시 노출 */
-        #ui-layer { 
-            position: absolute; inset: 0; z-index: 30; pointer-events: none; 
-            display: flex; flex-direction: column; justify-content: center; padding: 5vw; 
+        /* [모바일 레이아웃] 상하 분리 방식 */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #art-section { position: relative; flex: 6; height: auto; }
+            #text-section { 
+                position: relative; flex: 4; left: 0; top: 0; transform: none; 
+                padding-left: 10vw; background: #121212; justify-content: center; gap: 1.5vh;
+            }
         }
 
-        .word-item { 
-            font-size: 14px; font-weight: 900; letter-spacing: 0.2em; 
-            border-left: 3px solid rgba(247, 248, 246, 0.4); padding: 8px 15px; margin-bottom: 15px; 
-            background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; 
-        }
-
-        /* 필름 노이즈 질감 */
-        .grain { 
-            position: fixed; inset: -50%; width: 200%; height: 200%; 
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); 
-            opacity: 0.06; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; 
-        }
-        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,1%); } }
+        .word-item { color: #F7F8F6; font-size: clamp(12px, 4vw, 24px); letter-spacing: 0.15em; font-weight: bold; border-left: 3px solid rgba(247, 248, 246, 0.4); padding-left: 15px; white-space: nowrap; text-transform: uppercase; }
+        .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.04; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
+        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(5%,5%); } }
     </style>
 </head>
 <body>
     <div class="grain"></div>
     <div id="art-section"></div>
-    <div id="ui-layer">
-        <div id="word-1" class="word-item">K70_BOOT_SUCCESS</div>
-        <div id="word-2" class="word-item">CORE_DATAFEED</div>
-        <div id="word-3" class="word-item">GRID_STABILIZED</div>
-        <div id="word-4" class="word-item">V_1970_071</div>
+    <div id="text-section">
+        <div id="word-1" class="word-item">CONNECTING...</div>
+        <div id="word-2" class="word-item">CONNECTING...</div>
+        <div id="word-3" class="word-item">CONNECTING...</div>
+        <div id="word-4" class="word-item">CONNECTING...</div>
     </div>
 
     <script>
         const groups = {
-            "word-1": ["K70","CORE","AXIS","PRIME","SOURCE"],
-            "word-2": ["PLATE","FIELD","MATRIX","LAYER","GRID"],
-            "word-3": ["TRACE","ETCH","MARK","PRINT","STAMP"],
-            "word-4": ["NOISE","DELTA","JITTER","9818","5242"]
-        };
-
-        // 초기 속도와 상태 설정 (즉시 가동)
-        let speed = 160; 
-        let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
-        let audioCtx, audioInitialized = false;
-
-        // 브라우저 보안상 오디오는 첫 클릭 시 활성화
-        function initAudio() {
-            if (audioInitialized) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const osc = audioCtx.createOscillator();
-            const humG = audioCtx.createGain();
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(45, audioCtx.currentTime);
-            humG.gain.setValueAtTime(0.015, audioCtx.currentTime);
-            osc.connect(audioCtx.destination); osc.start();
-            audioInitialized = true;
-        }
-
-        // --- PIXI 비주얼 엔진 (K70 볼드 고딕 + 초밀착 자간) ---
-        const app = new PIXI.Application({ backgroundColor: 0x000000, antialias: true, resizeTo: window });
-        document.getElementById('art-section').appendChild(app.view);
-
-        const textStyle = new PIXI.TextStyle({
-            fontFamily: '"Arial Black", "Impact", sans-serif',
-            fontSize: window.innerWidth < 768 ? 130 : 240,
-            fontWeight: '900',
-            fill: '#ffffff',
-            letterSpacing: -20, // 자간 밀착
-            dropShadow: true,
-            dropShadowBlur: 20,
-            dropShadowColor: '#ffffff',
-            dropShadowDistance: 0,
-            dropShadowAlpha: 0.4
-        });
-
-        const k70Text = new PIXI.Text('K70', textStyle);
-        k70Text.anchor.set(0.5);
-        k70Text.x = app.screen.width / 2;
-        k70Text.y = app.screen.height / 2;
-        app.stage.addChild(k70Text);
-
-        const displaceSprite = PIXI.Sprite.from('https://pixijs.com/assets/pixi-filters/displacement_map_repeat.jpg');
-        displaceSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
-        const displaceFilter = new PIXI.filters.DisplacementFilter(displaceSprite);
-        const blurFilter = new PIXI.filters.BlurFilter();
-        const noiseFilter = new PIXI.filters.NoiseFilter(0.3);
-
-        k70Text.filters = [displaceFilter, blurFilter, noiseFilter];
-        app.stage.addChild(displaceSprite);
-
-        app.ticker.add((delta) => {
-            displaceSprite.x += 3.5 * delta;
-            displaceSprite.y += 2 * delta;
-
-            // K70 세로 왜곡 애니메이션 강조
-            displaceFilter.scale.x = 25 + (speed * 0.5);
-            displaceFilter.scale.y = 75 + (speed * 1.1); 
-
-            blurFilter.blur = 3 + (speed * 0.1);
-            noiseFilter.seed = Math.random();
-            speed *= 0.94;
-        });
-
-        // --- 데이터 셔플 로직 ---
-        function runShuffle(id, delay) {
-            const el = document.getElementById(id);
-            const list = groups[id];
-            setTimeout(() => {
-                let c = 0;
-                const itv = setInterval(() => {
-                    el.innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    if (++c >= 12) {
-                        clearInterval(itv);
-                        el.innerText = list[Math.floor(Math.random()*list.length)] + "_SYNC";
-                    }
-                }, 50);
-            }, delay);
-        }
-
-        const autoShuffle = () => Object.keys(groups).forEach((id, i) => runShuffle(id, i * 150));
-
-        // 창 로드 시 즉시 실행
-        window.onload = () => {
-            autoShuffle();
-            setInterval(autoShuffle, 5000);
-        };
-
-        // 첫 인터랙션 시 소리만 활성화
-        window.addEventListener('mousedown', initAudio, { once: true });
-        window.addEventListener('mousemove', (e) => {
-            speed += Math.sqrt((e.clientX-lastX)**2 + (e.clientY-lastY)**2) * 0.2;
-            lastX = e.clientX; lastY = e.clientY;
-        });
-    </script>
-</body>
-</html>
+            "word-1": ["KEY","CORE","AXIS","ORIGIN","PRIME","ROOT","BASE","INDEX","SOURCE","DATUM","THRESHOLD","PIVOT","ANCHOR"],
+            "word-2": ["PLATE","SHEET","FIELD","SURFACE","LAYER","GRID","PLANE","MATRIX","PANEL","SLAB","SUBSTRATE","BED","FACET"],
+            "word-3": ["PRINT","PRESS","IMPRINT","ETCH","STAMP","CAST","TRACE","MARK","ENGRAVE
