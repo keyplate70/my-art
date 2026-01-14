@@ -115,7 +115,7 @@
             sprite.y = app.screen.height / 2;
             
             // [수정 포인트] 0.95에서 0.7로 변경하여 이미지를 축소했습니다.
-            const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
+            const scale = Math.min((app.screen.width * 0.5) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
             sprite.scale.set(scale);
         }
         sprite.texture.baseTexture.on('loaded', resize);
