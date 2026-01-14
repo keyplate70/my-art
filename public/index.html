@@ -3,22 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>K70 Core System - Instant</title>
+    <title>K70 Core Stage</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100vh; font-family: 'Arial Black', 'Impact', sans-serif; touch-action: none; color: #F7F8F6; }
-        
-        /* 인트로 레이어 삭제 후 메인 UI 상시 노출 */
         #art-section { position: absolute; inset: 0; z-index: 5; }
-        #ui-layer { 
-            position: absolute; inset: 0; z-index: 30; pointer-events: none; 
-            display: flex; flex-direction: column; justify-content: center; padding: 40px; 
-        }
-        .word-item { 
-            font-size: 14px; font-weight: 900; letter-spacing: 0.2em; 
-            border-left: 3px solid rgba(247, 248, 246, 0.4); padding: 8px 15px; margin-bottom: 15px; 
-            background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; 
-        }
+        #ui-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; display: flex; flex-direction: column; justify-content: center; padding: 5vw; }
+        .word-item { font-size: 14px; font-weight: 900; letter-spacing: 0.2em; border-left: 3px solid rgba(247, 248, 246, 0.4); padding: 8px 15px; margin-bottom: 15px; background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; }
         .grain { position: fixed; inset: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.06; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
         @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,1%); } }
     </style>
@@ -27,10 +18,10 @@
     <div class="grain"></div>
     <div id="art-section"></div>
     <div id="ui-layer">
-        <div id="word-1" class="word-item">K70_BOOT</div>
-        <div id="word-2" class="word-item">CORE_READY</div>
-        <div id="word-3" class="word-item">GRID_STABLE</div>
-        <div id="word-4" class="word-item">V_1970_071</div>
+        <div id="word-1" class="word-item">K70_SYSTEM_ON</div>
+        <div id="word-2" class="word-item">CORE_DATAFEED</div>
+        <div id="word-3" class="word-item">GRID_STABILIZED</div>
+        <div id="word-4" class="word-item">VERSION_1970_071</div>
     </div>
 
     <script>
@@ -41,13 +32,11 @@
             "word-4": ["NOISE","DELTA","JITTER","70","1970"]
         };
 
-        let isStarted = true; // 로드 즉시 시작
-        let speed = 150;     // 초기 구동 속도 부여
+        let speed = 120;
         let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
-        let audioCtx, noiseGain, humFilter;
-        let audioInitialized = false;
+        let audioCtx, audioInitialized = false;
 
-        // --- 오디오 시스템 (첫 클릭 시 활성화됨) ---
+        // --- 오디오 활성화 (첫 상호작용 시) ---
         function initAudio() {
             if (audioInitialized) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -55,41 +44,27 @@
             
             const osc = audioCtx.createOscillator();
             const humG = audioCtx.createGain();
-            humFilter = audioCtx.createBiquadFilter();
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(40, audioCtx.currentTime);
-            humFilter.type = 'lowpass'; humFilter.frequency.setValueAtTime(120, audioCtx.currentTime);
-            humG.gain.setValueAtTime(0.02, audioCtx.currentTime);
-            osc.connect(humFilter); humFilter.connect(humG); humG.connect(audioCtx.destination);
-            osc.start();
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(45, audioCtx.currentTime);
+            humG.gain.setValueAtTime(0.015, audioCtx.currentTime);
+            osc.connect(audioCtx.destination); osc.start();
             audioInitialized = true;
         }
 
-        function playBeep(f, d) {
-            if (!audioInitialized) return;
-            const o = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o.type = 'square'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.01, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(); o.stop(audioCtx.currentTime + d);
-        }
-
-        // --- 비주얼 엔진 ---
+        // --- 비주얼 엔진 (K70 고딕 볼드 + 초밀착 자간) ---
         const app = new PIXI.Application({ backgroundColor: 0x000000, antialias: true, resizeTo: window });
         document.getElementById('art-section').appendChild(app.view);
 
         const textStyle = new PIXI.TextStyle({
             fontFamily: '"Arial Black", "Impact", sans-serif',
-            fontSize: window.innerWidth < 768 ? 120 : 220,
+            fontSize: window.innerWidth < 768 ? 140 : 260,
             fontWeight: '900',
             fill: '#ffffff',
-            letterSpacing: -15, // 극도로 좁은 자간
+            letterSpacing: -25, // 자간을 더 줄여 덩어리감 강조
             dropShadow: true,
-            dropShadowBlur: 20,
+            dropShadowBlur: 25, // 번짐 효과 극대화
             dropShadowColor: '#ffffff',
             dropShadowDistance: 0,
-            dropShadowAlpha: 0.4
+            dropShadowAlpha: 0.5
         });
 
         const k70Text = new PIXI.Text('K70', textStyle);
@@ -98,29 +73,31 @@
         k70Text.y = app.screen.height / 2;
         app.stage.addChild(k70Text);
 
+        // 왜곡 필터 설정
         const displaceSprite = PIXI.Sprite.from('https://pixijs.com/assets/pixi-filters/displacement_map_repeat.jpg');
         displaceSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         const displaceFilter = new PIXI.filters.DisplacementFilter(displaceSprite);
         const blurFilter = new PIXI.filters.BlurFilter();
-        const noiseFilter = new PIXI.filters.NoiseFilter(0.25);
+        blurFilter.blur = 4;
+        const noiseFilter = new PIXI.filters.NoiseFilter(0.3);
 
         k70Text.filters = [displaceFilter, blurFilter, noiseFilter];
         app.stage.addChild(displaceSprite);
 
         app.ticker.add((delta) => {
-            displaceSprite.x += 2 * delta;
-            displaceSprite.y += 1 * delta;
+            displaceSprite.x += 3 * delta;
+            displaceSprite.y += 1.5 * delta;
 
-            // K70 세로 왜곡 및 일렁임 강조
-            displaceFilter.scale.x = 25 + (speed * 0.4);
-            displaceFilter.scale.y = 50 + (speed * 0.8); 
+            // 속도에 따른 유기적 변형
+            displaceFilter.scale.x = 30 + (speed * 0.5);
+            displaceFilter.scale.y = 70 + (speed * 1.0); // 세로로 더 심하게 일렁임
 
-            blurFilter.blur = 2 + (speed * 0.1);
+            blurFilter.blur = 3 + (speed * 0.12);
             noiseFilter.seed = Math.random();
             speed *= 0.94;
         });
 
-        // --- 데이터 셔플 로직 ---
+        // --- 셔플 및 초기화 ---
         function runShuffle(id, delay) {
             const el = document.getElementById(id);
             const list = groups[id];
@@ -128,7 +105,26 @@
                 let c = 0;
                 const itv = setInterval(() => {
                     el.innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    if (audioInitialized) playBeep(120 + (c * 10), 0.02);
                     if (++c >= 12) {
                         clearInterval(itv);
-                        el.innerText = list
+                        el.innerText = list[Math.floor(Math.random()*list.length)] + "_SYNC";
+                    }
+                }, 50);
+            }, delay);
+        }
+
+        const autoShuffle = () => Object.keys(groups).forEach((id, i) => runShuffle(id, i * 150));
+
+        window.onload = () => {
+            autoShuffle();
+            setInterval(autoShuffle, 5000);
+        };
+
+        window.addEventListener('mousedown', initAudio, { once: true });
+        window.addEventListener('mousemove', (e) => {
+            speed += Math.sqrt((e.clientX-lastX)**2 + (e.clientY-lastY)**2) * 0.2;
+            lastX = e.clientX; lastY = e.clientY;
+        });
+    </script>
+</body>
+</html>
