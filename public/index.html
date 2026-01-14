@@ -6,39 +6,33 @@
     <title>Interactive Art - Grouped Words</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
-        body { 
-            margin: 0; padding: 0; overflow: hidden; 
-            background-color: #121212; 
-            display: flex; justify-content: center; align-items: center; height: 100vh;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        .word-container {
-            position: fixed; left: 5%; top: 50%; transform: translateY(-50%);
-            z-index: 10; pointer-events: none;
-            display: flex; flex-direction: column; gap: 30px;
-        }
-        .word-item {
-            color: #F7F8F6; 
-            font-size: 15px; 
-            letter-spacing: 3px;
-            font-weight: bold;
-            border-left: 4px solid rgba(247, 248, 246, 0.2);
-            padding-left: 25px;
-            min-width: 600px;
-            text-transform: uppercase;
-            transition: color 0.3s ease;
-        }
-        .grain {
-            position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png');
-            opacity: 0.05; pointer-events: none; z-index: 100;
-            animation: noise 0.2s infinite;
-        }
-        @keyframes noise {
-            0% { transform: translate(0,0); }
-            100% { transform: translate(5%,5%); }
-        }
-    </style>
+    body { 
+        margin: 0; padding: 0; overflow: hidden; 
+        /* 비네팅 효과: 중앙이 약간 더 밝은 딥그레이 */
+        background: radial-gradient(circle at center, #1c1c1c 0%, #121212 100%); 
+        display: flex; justify-content: center; align-items: center; height: 100vh;
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    .grain {
+        position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+        background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png');
+        /* 투명도를 0.04로 조절해 은은한 질감 부여 */
+        opacity: 0.04; 
+        pointer-events: none; z-index: 100;
+        animation: noise 0.2s infinite;
+    }
+    
+    /* 입자가 더 불규칙하게 움직이도록 애니메이션 수정 */
+    @keyframes noise {
+        0% { transform: translate(0,0); }
+        20% { transform: translate(-2%, 1%); }
+        40% { transform: translate(-1%, -2%); }
+        60% { transform: translate(2%, 2%); }
+        80% { transform: translate(1%, -1%); }
+        100% { transform: translate(-1%, 1%); }
+    }
+</style>
 </head>
 <body>
     <div class="grain"></div>
