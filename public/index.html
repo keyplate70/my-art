@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>K70 Core Stage - No Intro</title>
+    <title>K70 Core Stage - Immediate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
-        /* 진입 화면(Intro) 관련 스타일을 모두 삭제했습니다 */
+        /* 모든 진입 레이어 제거 */
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100vh; font-family: 'Arial Black', 'Impact', sans-serif; touch-action: none; color: #F7F8F6; }
         
         #art-section { position: absolute; inset: 0; z-index: 5; }
         
+        /* 데이터 UI 상시 노출 */
         #ui-layer { 
             position: absolute; inset: 0; z-index: 30; pointer-events: none; 
             display: flex; flex-direction: column; justify-content: center; padding: 5vw; 
@@ -22,6 +23,7 @@
             background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; 
         }
 
+        /* 필름 노이즈 질감 */
         .grain { 
             position: fixed; inset: -50%; width: 200%; height: 200%; 
             background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); 
@@ -34,10 +36,10 @@
     <div class="grain"></div>
     <div id="art-section"></div>
     <div id="ui-layer">
-        <div id="word-1" class="word-item">K70_SYSTEM_ACTIVE</div>
+        <div id="word-1" class="word-item">K70_BOOT_SUCCESS</div>
         <div id="word-2" class="word-item">CORE_DATAFEED</div>
         <div id="word-3" class="word-item">GRID_STABILIZED</div>
-        <div id="word-4" class="word-item">VERSION_1970_071</div>
+        <div id="word-4" class="word-item">V_1970_071</div>
     </div>
 
     <script>
@@ -45,15 +47,15 @@
             "word-1": ["K70","CORE","AXIS","PRIME","SOURCE"],
             "word-2": ["PLATE","FIELD","MATRIX","LAYER","GRID"],
             "word-3": ["TRACE","ETCH","MARK","PRINT","STAMP"],
-            "word-4": ["NOISE","DELTA","JITTER","0070","1970"]
+            "word-4": ["NOISE","DELTA","JITTER","9818","5242"]
         };
 
-        // 즉시 시작되도록 설정
-        let speed = 150; 
+        // 초기 속도와 상태 설정 (즉시 가동)
+        let speed = 160; 
         let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
         let audioCtx, audioInitialized = false;
 
-        // 사운드는 보안 정책상 첫 터치/클릭 시점에만 활성화
+        // 브라우저 보안상 오디오는 첫 클릭 시 활성화
         function initAudio() {
             if (audioInitialized) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -67,21 +69,21 @@
             audioInitialized = true;
         }
 
-        // --- PIXI 비주얼 엔진 (이미지 1.png 스타일 재현) ---
+        // --- PIXI 비주얼 엔진 (K70 볼드 고딕 + 초밀착 자간) ---
         const app = new PIXI.Application({ backgroundColor: 0x000000, antialias: true, resizeTo: window });
         document.getElementById('art-section').appendChild(app.view);
 
         const textStyle = new PIXI.TextStyle({
             fontFamily: '"Arial Black", "Impact", sans-serif',
-            fontSize: window.innerWidth < 768 ? 140 : 260,
+            fontSize: window.innerWidth < 768 ? 130 : 240,
             fontWeight: '900',
             fill: '#ffffff',
-            letterSpacing: -25, // K70 덩어리감 강조
+            letterSpacing: -20, // 자간 밀착
             dropShadow: true,
-            dropShadowBlur: 25,
+            dropShadowBlur: 20,
             dropShadowColor: '#ffffff',
             dropShadowDistance: 0,
-            dropShadowAlpha: 0.5
+            dropShadowAlpha: 0.4
         });
 
         const k70Text = new PIXI.Text('K70', textStyle);
@@ -100,19 +102,19 @@
         app.stage.addChild(displaceSprite);
 
         app.ticker.add((delta) => {
-            displaceSprite.x += 3 * delta;
-            displaceSprite.y += 1.5 * delta;
+            displaceSprite.x += 3.5 * delta;
+            displaceSprite.y += 2 * delta;
 
-            // K70 흘러내리는 왜곡 효과
-            displaceFilter.scale.x = 30 + (speed * 0.5);
-            displaceFilter.scale.y = 80 + (speed * 1.2); 
+            // K70 세로 왜곡 애니메이션 강조
+            displaceFilter.scale.x = 25 + (speed * 0.5);
+            displaceFilter.scale.y = 75 + (speed * 1.1); 
 
-            blurFilter.blur = 3 + (speed * 0.12);
+            blurFilter.blur = 3 + (speed * 0.1);
             noiseFilter.seed = Math.random();
             speed *= 0.94;
         });
 
-        // --- 데이터 셔플 엔진 ---
+        // --- 데이터 셔플 로직 ---
         function runShuffle(id, delay) {
             const el = document.getElementById(id);
             const list = groups[id];
@@ -130,8 +132,18 @@
 
         const autoShuffle = () => Object.keys(groups).forEach((id, i) => runShuffle(id, i * 150));
 
-        // 로드 즉시 실행
+        // 창 로드 시 즉시 실행
         window.onload = () => {
             autoShuffle();
             setInterval(autoShuffle, 5000);
         };
+
+        // 첫 인터랙션 시 소리만 활성화
+        window.addEventListener('mousedown', initAudio, { once: true });
+        window.addEventListener('mousemove', (e) => {
+            speed += Math.sqrt((e.clientX-lastX)**2 + (e.clientY-lastY)**2) * 0.2;
+            lastX = e.clientX; lastY = e.clientY;
+        });
+    </script>
+</body>
+</html>
