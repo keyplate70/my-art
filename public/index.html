@@ -3,31 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>K70 Core System</title>
+    <title>K70 Core System - Instant</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100vh; font-family: 'Arial Black', 'Impact', sans-serif; touch-action: none; color: #F7F8F6; }
-        #intro-overlay { position: fixed; inset: 0; background: #000; z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: opacity 1.2s ease; }
-        .enter-prompt { text-align: center; letter-spacing: 0.6em; font-size: 13px; animation: pulse 2s infinite; font-family: 'Courier New', monospace; }
-        @keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.7; } }
+        
+        /* 인트로 레이어 삭제 후 메인 UI 상시 노출 */
         #art-section { position: absolute; inset: 0; z-index: 5; }
-        #ui-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; display: flex; flex-direction: column; justify-content: center; padding: 40px; opacity: 0; transition: opacity 2s ease; }
-        .word-item { font-size: 14px; font-weight: 900; letter-spacing: 0.2em; border-left: 3px solid rgba(247, 248, 246, 0.4); padding: 8px 15px; margin-bottom: 15px; background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; }
+        #ui-layer { 
+            position: absolute; inset: 0; z-index: 30; pointer-events: none; 
+            display: flex; flex-direction: column; justify-content: center; padding: 40px; 
+        }
+        .word-item { 
+            font-size: 14px; font-weight: 900; letter-spacing: 0.2em; 
+            border-left: 3px solid rgba(247, 248, 246, 0.4); padding: 8px 15px; margin-bottom: 15px; 
+            background: rgba(247, 248, 246, 0.03); width: fit-content; font-family: 'Courier New', monospace; 
+        }
         .grain { position: fixed; inset: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.06; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
         @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,1%); } }
-        .active #intro-overlay { opacity: 0; pointer-events: none; }
-        .active #ui-layer { opacity: 1; }
     </style>
 </head>
 <body>
     <div class="grain"></div>
-    <div id="intro-overlay" onclick="startSystem()">
-        <div class="enter-prompt">K70 INITIALIZING...<br><br>CLICK TO ENGAGE</div>
-    </div>
     <div id="art-section"></div>
     <div id="ui-layer">
-        <div id="word-1" class="word-item">K70_AXIS</div>
-        <div id="word-2" class="word-item">CORE_ACTIVE</div>
+        <div id="word-1" class="word-item">K70_BOOT</div>
+        <div id="word-2" class="word-item">CORE_READY</div>
         <div id="word-3" class="word-item">GRID_STABLE</div>
         <div id="word-4" class="word-item">V_1970_071</div>
     </div>
@@ -40,14 +41,18 @@
             "word-4": ["NOISE","DELTA","JITTER","70","1970"]
         };
 
-        let isStarted = false;
-        let speed = 0;
+        let isStarted = true; // 로드 즉시 시작
+        let speed = 150;     // 초기 구동 속도 부여
         let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
         let audioCtx, noiseGain, humFilter;
+        let audioInitialized = false;
 
-        // --- 오디오 시스템 ---
+        // --- 오디오 시스템 (첫 클릭 시 활성화됨) ---
         function initAudio() {
+            if (audioInitialized) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             const osc = audioCtx.createOscillator();
             const humG = audioCtx.createGain();
             humFilter = audioCtx.createBiquadFilter();
@@ -56,10 +61,11 @@
             humG.gain.setValueAtTime(0.02, audioCtx.currentTime);
             osc.connect(humFilter); humFilter.connect(humG); humG.connect(audioCtx.destination);
             osc.start();
+            audioInitialized = true;
         }
 
         function playBeep(f, d) {
-            if (!isStarted) return;
+            if (!audioInitialized) return;
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
             o.type = 'square'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
@@ -69,16 +75,16 @@
             o.start(); o.stop(audioCtx.currentTime + d);
         }
 
-        // --- 비주얼 엔진 (볼드 고딕 + 좁은 자간) ---
+        // --- 비주얼 엔진 ---
         const app = new PIXI.Application({ backgroundColor: 0x000000, antialias: true, resizeTo: window });
         document.getElementById('art-section').appendChild(app.view);
 
         const textStyle = new PIXI.TextStyle({
-            fontFamily: '"Arial Black", "Impact", sans-serif', // 볼드한 고딕 폰트
+            fontFamily: '"Arial Black", "Impact", sans-serif',
             fontSize: window.innerWidth < 768 ? 120 : 220,
             fontWeight: '900',
             fill: '#ffffff',
-            letterSpacing: -15, // 자간을 대폭 줄여서 덩어리감 형성
+            letterSpacing: -15, // 극도로 좁은 자간
             dropShadow: true,
             dropShadowBlur: 20,
             dropShadowColor: '#ffffff',
@@ -96,27 +102,25 @@
         displaceSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         const displaceFilter = new PIXI.filters.DisplacementFilter(displaceSprite);
         const blurFilter = new PIXI.filters.BlurFilter();
-        blurFilter.blur = 3;
         const noiseFilter = new PIXI.filters.NoiseFilter(0.25);
 
         k70Text.filters = [displaceFilter, blurFilter, noiseFilter];
         app.stage.addChild(displaceSprite);
 
         app.ticker.add((delta) => {
-            if (!isStarted) return;
             displaceSprite.x += 2 * delta;
             displaceSprite.y += 1 * delta;
 
-            // K70 텍스트 왜곡 강도 (세로 왜곡 강조)
+            // K70 세로 왜곡 및 일렁임 강조
             displaceFilter.scale.x = 25 + (speed * 0.4);
             displaceFilter.scale.y = 50 + (speed * 0.8); 
 
             blurFilter.blur = 2 + (speed * 0.1);
             noiseFilter.seed = Math.random();
-            speed *= 0.92;
+            speed *= 0.94;
         });
 
-        // --- 제어 및 셔플 ---
+        // --- 데이터 셔플 로직 ---
         function runShuffle(id, delay) {
             const el = document.getElementById(id);
             const list = groups[id];
@@ -124,33 +128,7 @@
                 let c = 0;
                 const itv = setInterval(() => {
                     el.innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    playBeep(120 + (c * 10), 0.02);
+                    if (audioInitialized) playBeep(120 + (c * 10), 0.02);
                     if (++c >= 12) {
                         clearInterval(itv);
-                        el.innerText = list[Math.floor(Math.random()*list.length)] + "_SYNC";
-                        playBeep(350, 0.08);
-                    }
-                }, 50);
-            }, delay);
-        }
-
-        const autoShuffle = () => Object.keys(groups).forEach((id, i) => runShuffle(id, i * 150));
-
-        function startSystem() {
-            if (isStarted) return;
-            isStarted = true;
-            initAudio();
-            document.body.classList.add('active');
-            speed = 150;
-            autoShuffle();
-            setInterval(autoShuffle, 5000);
-        }
-
-        window.onmousemove = (e) => {
-            if (!isStarted) return;
-            speed += Math.sqrt((e.clientX-lastX)**2 + (e.clientY-lastY)**2) * 0.15;
-            lastX = e.clientX; lastY = e.clientY;
-        };
-    </script>
-</body>
-</html>
+                        el.innerText = list
