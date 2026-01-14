@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interactive Canvas - Main Stage</title>
+    <script src="https://pixijs.download/release/v7.4.2/pixi.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #0a0a0a; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; color: #F7F8F6; }
+        
+        /* [1] 인트로 클릭 레이어 */
+        #intro-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a; z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .enter-prompt { text-align: center; letter-spacing: 0.8em; font-size: 13px; opacity: 0.6; animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.7; } }
+
+        /* [2] 메인 아트 캔버스 영역 */
+        #art-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; filter: contrast(1.2) brightness(1.1); }
+
+        /* [3] 사이드 데이터 패널 (영상 스타일) */
+        #ui-layer {
+            position: absolute; inset: 0; z-index: 30; pointer-events: none;
+            display: flex; justify-content: space-between; padding: 40px;
+            opacity: 0; transition: opacity 2s ease 0.5s;
+        }
+        .data-column { display: flex; flex-direction: column; gap: 20px; }
+        .word-item { 
+            font-size: 11px; font-weight: 900; letter-spacing: 0.2em; 
+            border-left: 2px solid #F7F8F6; padding-left: 12px;
+            background: rgba(247, 248, 246, 0.03); padding-top: 5px; padding-bottom: 5px;
+            width: fit-content; min-width: 180px;
+        }
+
+        /* [4] 화면 노이즈 효과 */
+        .grain { position: fixed; inset: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.06; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
+        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,1%); } }
+
+        /* 진입 시 효과 */
+        .started #intro-overlay { opacity: 0; transform: scale(1.1); pointer-events: none; }
+        .started #ui-layer { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    
+    <div id="intro-overlay">
+        <div class="enter-prompt">ACCESSING CORE...<br><br>CLICK TO ENGAGE</div>
+    </div>
+
+    <div id="art-section"></div>
+
+    <div id="ui-layer">
+        <div class="data-column">
+            <div id="word-1" class="word-item">AXIS_READY</div>
+            <div id="word-2" class="word-item">GRID_STABLE</div>
+            <div id="word-3" class="word-item">SIGNAL_SYNC</div>
+        </div>
+        <div class="data-column" style="align-items: flex-end; text-align: right;">
+            <div class="word-item" style="border-left:none; border-right:2px solid #F7F8F6; padding-left:0; padding-right:12px;">SYSTEM_V1.0.4</div>
+            <div id="word-4" class="word-item" style="border-left:none; border-right:2px solid #F7F8F6; padding-left:0; padding-right:12px;">LATENCY: 0.04ms</div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const groups = {
+                "word-1": ["AXIS","VECTOR","VERTEX","NODE","CORE","LINK"],
+                "word-2": ["FIELD","SURFACE","MATRIX","PLANE","LAYER","GRID"],
+                "word-3": ["TRACE","ETCH","IMPRINT","STAMP","MARK","PATH"],
+                "word-4": ["NOISE","DELTA","JITTER","ERROR","SHIFT","BIAS"]
+            };
+
+            let isStarted = false;
+            let speed = 0;
+            let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
+
+            // --- 사운드 설정 ---
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let noiseGain, humFilter;
+
+            function initAudio() {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const humG = audioCtx.createGain();
+                humFilter = audioCtx.createBiquadFilter();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(40, audioCtx.currentTime);
+                humFilter.type = 'lowpass'; humFilter.frequency.setValueAtTime(120, audioCtx.currentTime);
+                humG.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                osc.connect(humFilter); humFilter.connect(humG); humG.connect(audioCtx.destination);
+                osc.start();
+
+                const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+                const nSource = audioCtx.createBufferSource();
+                nSource.buffer = buffer; nSource.loop = true;
+                noiseGain = audioCtx.createGain();
+                const nFilter = audioCtx.createBiquadFilter();
+                nFilter.type = 'bandpass'; nFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                noiseGain.gain.setValueAtTime(0.006, audioCtx.currentTime);
+                nSource.connect(nFilter); nFilter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+                nSource.start();
+            }
+
+            function playBeep(f, d) {
+                if (!isStarted) return;
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = 'square'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                g.gain.setValueAtTime(0.01, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
+            }
+
+            // --- 비주얼 엔진 (Elastic Threads) ---
+            const app = new PIXI.Application({ backgroundColor: 0x0a0a0a, antialias: true, resizeTo: window });
+            document.getElementById('art-section').appendChild(app.view);
+
+            const stage = new PIXI.Container();
+            app.stage.addChild(stage);
+            const gfx = new PIXI.Graphics();
+            stage.addChild(gfx);
+
+            const blur = new PIXI.filters.BlurFilter();
+            stage.filters = [blur, new PIXI.filters.NoiseFilter(0.1)];
+
+            function draw(t) {
+                gfx.clear();
+                if (!isStarted) return;
+                gfx.lineStyle(1.5, 0xF7F8F6, 0.45);
+                const cx = app.screen.width / 2, cy = app.screen.height / 2;
+                const r = Math.min(cx, cy) * 0.45;
+
+                // 영상처럼 겹쳐진 선들이 탄성 있게 움직이는 로직
+                for(let j=0; j<3; j++) {
+                    gfx.lineStyle(1, 0xF7F8F6, 0.2 - (j*0.05));
+                    const phase = t * (1 + j*0.1);
+                    gfx.moveTo(cx + Math.cos(phase)*r, cy + Math.sin(phase)*r);
+                    for (let i = 0; i <= 20; i++) {
+                        const ang = (i / 20) * Math.PI * 2 + phase;
+                        const dr = r + Math.sin(t * 4 + i) * (speed * (0.3 + j*0.1));
+                        gfx.lineTo(cx + Math.cos(ang)*dr, cy + Math.sin(ang)*dr);
+                    }
+                }
+            }
+
+            app.ticker.add(() => {
+                const t = app.ticker.lastTime / 1000;
+                draw(t);
+                blur.blur = Math.min(speed * 0.15, 8);
+                if (isStarted) {
+                    noiseGain.gain.setTargetAtTime(0.006 + (speed * 0.001), audioCtx.currentTime, 0.1);
+                    humFilter.frequency.setTargetAtTime(120 + (speed * 3), audioCtx.currentTime, 0.1);
+                }
+                speed *= 0.94;
+            });
+
+            // --- 데이터 셔플 로직 ---
+            function shuffle(id, d) {
+                const el = document.getElementById(id); if(!el) return;
+                const list = groups[id] || ["DATA"];
+                setTimeout(() => {
+                    let c = 0;
+                    const itv = setInterval(() => {
+                        el.innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+                        playBeep(200 + (c * 15), 0.02);
+                        if (++c >= 12) {
+                            clearInterval(itv);
+                            el.innerText = list[Math.floor(Math.random()*list.length)] + "_ACTIVE";
+                            playBeep(400, 0.08);
+                        }
+                    }, 50);
+                }, d);
+            }
+
+            const shuffleAll = () => Object.keys(groups).forEach((id, i) => shuffle(id, i * 150));
+
+            // --- 시작 액션 ---
+            document.getElementById('intro-overlay').onclick = () => {
+                if (isStarted) return;
+                isStarted = true;
+                initAudio();
+                document.body.classList.add('started');
+                speed = 120;
+                shuffleAll();
+                setInterval(shuffleAll, 5000);
+            };
+
+            window.onmousemove = (e) => {
+                if (!isStarted) return;
+                speed += Math.sqrt((e.clientX-lastX)**2 + (e.clientY-lastY)**2) * 0.12;
+                lastX = e.clientX; lastY = e.clientY;
+            };
+        };
+    </script>
+</body>
+</html>
