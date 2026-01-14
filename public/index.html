@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Optimized Edition</title>
+    <title>Interactive Art - Motion Blur Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-filters@latest/dist/pixi-filters.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
         .word-container { position: fixed; left: 5%; top: 50%; transform: translateY(-50%); z-index: 10; pointer-events: none; display: flex; flex-direction: column; gap: 25px; }
@@ -24,11 +25,8 @@
     </div>
 
     <script>
-        // --- [설정 구간] ---
-        const RESET_INTERVAL = 5000;  // 리셋 주기: 5초
-        const SHUFFLE_SPEED = 35;     // 셔플 속도 (밀리초 단위)
-        const PARTICLE_SIZE_MAX = 10; // 파티클 최대 크기
-        // ------------------
+        const RESET_INTERVAL = 5000;
+        const SHUFFLE_SPEED = 35;
 
         const groups = {
             "word-1": ["MEMORY", "TRACE", "VOID", "SIGNAL"], 
@@ -47,81 +45,70 @@
         sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
 
-        const particleContainer = new PIXI.Container();
-        app.stage.addChild(particleContainer);
-        let particles = [];
+        // --- 필터 설정 ---
+        // 1. 일렁임 필터
+        const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
+        displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+        const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
+        app.stage.addChild(displacementSprite);
 
-        let mouseX = 0.5, mouseY = 0.5;
+        // 2. 모션 블러 필터 (새로 추가)
+        const motionBlurFilter = new PIXI.filters.MotionBlurFilter([0, 0], 15);
+        
+        sprite.filters = [displacementFilter, motionBlurFilter];
 
-        // 마우스 감지 및 파티클 생성
+        let lastMouseX = 0, lastMouseY = 0;
+        let mouseVelocityX = 0, mouseVelocityY = 0;
+
         window.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX / window.innerWidth;
-            mouseY = e.clientY / window.innerHeight;
-            for(let i=0; i<2; i++) {
-                const p = new PIXI.Graphics();
-                const size = Math.random() * PARTICLE_SIZE_MAX + 2;
-                p.beginFill(0xFFFFFF, Math.random() * 0.3 + 0.2); 
-                p.drawCircle(0, 0, size);
-                p.endFill();
-                p.x = e.clientX;
-                p.y = e.clientY;
-                p.vx = (Math.random() - 0.5) * 3;
-                p.vy = (Math.random() - 0.5) * 3;
-                p.life = 1.0;
-                particleContainer.addChild(p);
-                particles.push(p);
-            }
+            // 마우스 속도 계산 (현재 위치 - 이전 위치)
+            mouseVelocityX = e.clientX - lastMouseX;
+            mouseVelocityY = e.clientY - lastMouseY;
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            // 일렁임 필터 위치 조절
+            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 40;
+            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 40;
         });
 
         app.ticker.add(() => {
-            // 이미지 부드러운 중앙 정렬 및 스케일
             sprite.x = app.screen.width / 2;
             sprite.y = app.screen.height / 2;
             const scale = Math.min((app.screen.width * 0.7) / sprite.texture.width, (app.screen.height * 0.7) / sprite.texture.height);
             sprite.scale.set(scale);
 
-            // 마우스 연동 색상 변화
-            const r = Math.floor(100 + mouseX * 155); 
-            const g = Math.floor(100 + (1 - mouseY) * 155);
-            const b = Math.floor(255 - (mouseX * 120 + mouseY * 120));
-            sprite.tint = (r << 16) + (g << 8) + b;
+            // 모션 블러 강도 조절 (속도에 비례, 서서히 감쇄)
+            motionBlurFilter.velocity.x = mouseVelocityX * 0.5;
+            motionBlurFilter.velocity.y = mouseVelocityY * 0.5;
+            
+            // 마우스가 멈췄을 때 블러가 자연스럽게 사라지도록 속도 감쇄
+            mouseVelocityX *= 0.9;
+            mouseVelocityY *= 0.9;
 
-            // 파티클 업데이트 및 제거 루프
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life -= 0.015;
-                p.alpha = p.life;
-                if (p.life <= 0) {
-                    particleContainer.removeChild(p);
-                    particles.splice(i, 1);
-                }
-            }
+            // 색상은 흰색 원본 유지 (요청에 따라 색상 변화 제거)
+            sprite.tint = 0xFFFFFF; 
         });
 
+        // --- 단어 셔플 로직 ---
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
             const currentGroup = groups[elementId];
-            
             setTimeout(() => {
                 let iterations = 0;
-                const maxIterations = 25; // 셔플 횟수를 고정하여 리셋 주기와 맞춤
-                
+                const maxIterations = 25;
                 const interval = setInterval(() => {
                     let randomStr = "";
                     for(let i=0; i<8; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
                     element.innerText = randomStr;
-                    element.style.color = "#F9F9F9";
-
                     iterations++;
                     if (iterations >= maxIterations) {
                         clearInterval(interval);
                         const w1 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
                         const w2 = currentGroup[Math.floor(Math.random() * currentGroup.length)];
                         element.innerText = `${w1} : ${w2}`;
-                        element.style.color = "#F7F8F6";
                     }
                 }, SHUFFLE_SPEED);
             }, delay);
@@ -134,21 +121,8 @@
             startSlotMachine("word-4", 600);
         }
 
-        // 5초 간격 실행
         setInterval(triggerAll, RESET_INTERVAL); 
         triggerAll();
-
-        // 일렁임 필터 적용
-        const displacementSprite = PIXI.Sprite.from('https://res.cloudinary.com/dv9vxf7qn/image/upload/v1676641571/displacement_map_repeat_v8q7ig.jpg');
-        displacementSprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
-        const displacementFilter = new PIXI.filters.DisplacementFilter(displacementSprite);
-        app.stage.addChild(displacementSprite);
-        sprite.filters = [displacementFilter];
-
-        window.addEventListener('mousemove', (e) => {
-            displacementFilter.scale.x = (e.clientX - app.screen.width / 2) / 40;
-            displacementFilter.scale.y = (e.clientY - app.screen.height / 2) / 40;
-        });
     </script>
 </body>
 </html>
