@@ -3,33 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interactive Art - Final Edition</title>
+    <title>Interactive Art - Integrated Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; display: flex; flex-direction: column; }
         
-        /* [PC 레이아웃] */
+        /* 메인 레이아웃 */
         #art-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
-        #text-section { position: absolute; left: 5%; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 25px; pointer-events: none; }
+        #text-section { position: absolute; left: 5%; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 25px; pointer-events: none; opacity: 0; transition: opacity 2s ease; }
         
-        /* [모바일 레이아웃] */
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            #art-section { position: relative; flex: 6; height: auto; }
-            #text-section { 
-                position: relative; flex: 4; left: 0; top: 0; transform: none; 
-                padding-left: 10vw; background: #121212; justify-content: center; gap: 1.5vh;
-            }
+        /* 클릭 가이드 오버레이 */
+        #intro-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #121212; z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: opacity 1.5s ease;
         }
+        .enter-text { color: #F7F8F6; font-size: 12px; letter-spacing: 0.6em; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+        .hidden { opacity: 0 !important; pointer-events: none; }
 
         .word-item { color: #F7F8F6; font-size: clamp(12px, 4vw, 24px); letter-spacing: 0.15em; font-weight: bold; border-left: 3px solid rgba(247, 248, 246, 0.4); padding-left: 15px; white-space: nowrap; text-transform: uppercase; }
-        .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.04; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
-        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(5%,5%); } }
+        .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.05; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
+        @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(2%,2%); } }
     </style>
 </head>
 <body>
     <div class="grain"></div>
+    
+    <div id="intro-overlay">
+        <div class="enter-text">CLICK TO GENERATE</div>
+    </div>
+
     <div id="art-section"></div>
+    
     <div id="text-section">
         <div id="word-1" class="word-item">WAIT...</div>
         <div id="word-2" class="word-item">WAIT...</div>
@@ -38,141 +45,127 @@
     </div>
 
     <script>
+        // --- 1. 초기 데이터 및 상태 ---
         const groups = {
-            "word-1": ["KEY","CORE","AXIS","ORIGIN","PRIME","ROOT","BASE","INDEX","SOURCE","DATUM","THRESHOLD","PIVOT","ANCHOR"],
-            "word-2": ["PLATE","SHEET","FIELD","SURFACE","LAYER","GRID","PLANE","MATRIX","PANEL","SLAB","SUBSTRATE","BED","FACET"],
-            "word-3": ["PRINT","PRESS","IMPRINT","ETCH","STAMP","CAST","TRACE","MARK","ENGRAVE","OFFSET","EXPOSE"],
-            "word-4": ["NOISE","GRAIN","SHIFT","BIAS","DELTA","VARIANCE","ERROR","DRIFT","BLUR","STATIC","JITTER","70","071","700","7","1970"]
+            "word-1": ["KEY","CORE","AXIS","ORIGIN","PRIME","ROOT","BASE","INDEX","SOURCE","DATUM"],
+            "word-2": ["PLATE","FIELD","SURFACE","LAYER","GRID","PLANE","MATRIX","PANEL","SLAB"],
+            "word-3": ["PRINT","PRESS","IMPRINT","ETCH","STAMP","CAST","TRACE","MARK","OFFSET"],
+            "word-4": ["NOISE","GRAIN","SHIFT","BIAS","DELTA","ERROR","DRIFT","70","1970"]
         };
 
-        const artSection = document.getElementById('art-section');
+        let isStarted = false;
+        let speed = 0;
+        let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
+
+        // --- 2. 오디오 엔진 (Lo-Fi) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let noiseGain, humFilter;
+
+        function initLoFiAudio() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // Drone Hum
+            const osc = audioCtx.createOscillator();
+            const humGain = audioCtx.createGain();
+            humFilter = audioCtx.createBiquadFilter();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(55, audioCtx.currentTime);
+            humFilter.type = 'lowpass';
+            humFilter.frequency.setValueAtTime(150, audioCtx.currentTime);
+            humGain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+            osc.connect(humFilter); humFilter.connect(humGain); humGain.connect(audioCtx.destination);
+            osc.start();
+
+            // Static Noise
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer; noise.loop = true;
+            noiseGain = audioCtx.createGain();
+            const nFilter = audioCtx.createBiquadFilter();
+            nFilter.type = 'bandpass';
+            nFilter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            noiseGain.gain.setValueAtTime(0.005, audioCtx.currentTime);
+            noise.connect(nFilter); nFilter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        function playBeep(freq, dur) {
+            if (!isStarted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + dur);
+        }
+
+        // --- 3. PIXI 그래픽 엔진 ---
         const app = new PIXI.Application({ 
             backgroundColor: 0x121212, antialias: true,
             resolution: window.devicePixelRatio || 1, autoDensity: true,
-            resizeTo: artSection 
+            resizeTo: document.getElementById('art-section') 
         });
-        artSection.appendChild(app.view);
+        document.getElementById('art-section').appendChild(app.view);
 
-        // --- 로우파이 배경 오디오 시스템 ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-let isAudioStarted = false;
+        const graphics = new PIXI.Graphics();
+        const blurFilter = new PIXI.filters.BlurFilter();
+        const noiseFilter = new PIXI.filters.NoiseFilter();
+        graphics.filters = [blurFilter, noiseFilter];
+        app.stage.addChild(graphics);
 
-// 1. 지속적인 배경 웅웅거림 (Drone Hum)
-function startBackgroundHum() {
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    const lowPassFilter = audioCtx.createBiquadFilter();
+        function drawShape(t) {
+            graphics.clear();
+            if (!isStarted) return;
 
-    oscillator.type = 'sawtooth'; // 톱니파를 사용하여 거친 느낌 부여
-    oscillator.frequency.setValueAtTime(55, audioCtx.currentTime); // 아주 낮은 베이스음 (A1)
+            graphics.lineStyle(1.5, 0xF7F8F6, 0.6);
+            const centerX = app.screen.width / 2;
+            const centerY = app.screen.height / 2;
+            const radius = Math.min(app.screen.width, app.screen.height) * 0.3;
 
-    lowPassFilter.type = 'lowpass';
-    lowPassFilter.frequency.setValueAtTime(150, audioCtx.currentTime); // 저음만 남기고 깎음
+            graphics.moveTo(centerX + Math.cos(t) * radius, centerY + Math.sin(t) * radius);
+            for (let i = 0; i <= 12; i++) {
+                const angle = (i / 12) * Math.PI * 2 + t * 0.2;
+                const dR = radius + Math.sin(t * 2 + i) * (speed * 0.5);
+                const x = centerX + Math.cos(angle) * dR;
+                const y = centerY + Math.sin(angle) * dR;
+                graphics.lineTo(x, y);
+                graphics.drawCircle(x, y, 1.5);
+            }
+        }
 
-    gainNode.gain.setValueAtTime(0.015, audioCtx.currentTime); // 매우 작게 설정 (배경음)
-
-    oscillator.connect(lowPassFilter);
-    lowPassFilter.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-}
-
-// 2. 지지직거리는 화이트 노이즈 (Static Noise)
-function startStaticNoise() {
-    const bufferSize = 2 * audioCtx.sampleRate;
-    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-    }
-
-    const whiteNoise = audioCtx.createBufferSource();
-    whiteNoise.buffer = noiseBuffer;
-    whiteNoise.loop = true;
-
-    const noiseGain = audioCtx.createGain();
-    const noiseFilter = audioCtx.createBiquadFilter();
-
-    noiseFilter.type = 'bandpass'; // 특정 주파수 대역만 남겨서 투박하게 만듦
-    noiseFilter.frequency.setValueAtTime(800, audioCtx.currentTime);
-    noiseFilter.Q.setValueAtTime(0.5, audioCtx.currentTime);
-
-    noiseGain.gain.setValueAtTime(0.008, audioCtx.currentTime); // 아주 미세하게 깔림
-
-    whiteNoise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
-
-    whiteNoise.start();
-}
-
-// 기존 짧은 비프음 (뚜뚜) 함수는 유지
-function playBeep(freq, dur) {
-    if (audioCtx.state === 'suspended') return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + dur);
-}
-
-// 통합 실행 함수 (첫 클릭 시 실행)
-function initLoFiAudio() {
-    if (isAudioStarted) return;
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    startBackgroundHum();   // 베이스 웅웅거림 시작
-    startStaticNoise();    // 지지직 소리 시작
-    isAudioStarted = true;
-    console.log("Lo-Fi Background Audio Started");
-}
-
-// 이벤트 리스너 등록
-window.addEventListener('mousedown', initLoFiAudio, {once: true});
-window.addEventListener('touchstart', initLoFiAudio, {once: true});
-
-        // --- 이미지 및 필터 시스템 ---
-        const texture = PIXI.Texture.from('1.png');
-        texture.baseTexture.on('loaded', () => {
-            const sprite = new PIXI.Sprite(texture);
-            sprite.anchor.set(0.5);
-            app.stage.addChild(sprite);
-
-            const blurFilter = new PIXI.filters.BlurFilter();
-            const noiseFilter = new PIXI.filters.NoiseFilter();
-            sprite.filters = [blurFilter, noiseFilter];
-
-            let lastX = window.innerWidth / 2, lastY = window.innerHeight / 2;
-            let speed = 0;
-
-            const handleMove = (x, y) => {
-                speed = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
-                lastX = x; lastY = y;
-            };
-
-            window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
-            window.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
-
-            app.ticker.add(() => {
-                sprite.x = app.screen.width / 2;
-                sprite.y = app.screen.height / 2;
-                const margin = window.innerWidth < 768 ? 0.8 : 0.65;
-                const scale = Math.min((app.screen.width * margin) / texture.width, (app.screen.height * margin) / texture.height);
-                sprite.scale.set(scale);
-
-                blurFilter.blur = Math.min(speed * 0.3, 12);
-                noiseFilter.noise = Math.min(speed * 0.008, 0.4);
-                noiseFilter.seed = Math.random();
-                speed *= 0.85;
-            });
+        app.ticker.add(() => {
+            const t = app.ticker.lastTime / 1000;
+            drawShape(t);
+            
+            blurFilter.blur = Math.min(speed * 0.2, 10);
+            noiseFilter.noise = Math.min(speed * 0.01, 0.3);
+            
+            if (isStarted) {
+                // 사운드와 비주얼 반응 동기화
+                noiseGain.gain.setTargetAtTime(0.005 + (speed * 0.001), audioCtx.currentTime, 0.1);
+                humFilter.frequency.setTargetAtTime(150 + (speed * 2), audioCtx.currentTime, 0.1);
+            }
+            speed *= 0.93;
         });
 
-        // --- 셔플 로직 ---
+        // --- 4. 인터랙션 로직 ---
+        function startExperience() {
+            if (isStarted) return;
+            isStarted = true;
+
+            initLoFiAudio();
+            document.getElementById('intro-overlay').classList.add('hidden');
+            document.getElementById('text-section').style.opacity = "1";
+            
+            speed = 150; // 진입 시 폭발 효과
+            triggerAll();
+        }
+
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
             const currentGroup = groups[elementId];
@@ -181,23 +174,28 @@ window.addEventListener('touchstart', initLoFiAudio, {once: true});
                 let iter = 0;
                 const interval = setInterval(() => {
                     element.innerText = Array(6).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join("");
-                    playBeep(100 + (iter * 3), 0.02); // 투박한 뚜뚜 소리
+                    playBeep(100 + (iter * 5), 0.02);
                     if (++iter >= 15) {
                         clearInterval(interval);
                         element.innerText = `${currentGroup[Math.floor(Math.random() * currentGroup.length)]} : ${currentGroup[Math.floor(Math.random() * currentGroup.length)]}`;
-                        playBeep(200, 0.1); // 확정음
+                        playBeep(300, 0.08);
                     }
                 }, 40);
             }, delay);
         }
 
         const triggerAll = () => Object.keys(groups).forEach((id, i) => startSlotMachine(id, i * 150));
-        setInterval(triggerAll, 5000);
-        
-        window.addEventListener('mousedown', () => audioCtx.resume(), {once: true});
-        window.addEventListener('touchstart', () => audioCtx.resume(), {once: true});
-        
-        triggerAll();
+
+        // 이벤트 등록
+        document.getElementById('intro-overlay').addEventListener('click', startExperience);
+        window.addEventListener('mousemove', (e) => {
+            if (!isStarted) return;
+            const dist = Math.sqrt(Math.pow(e.clientX - lastX, 2) + Math.pow(e.clientY - lastY, 2));
+            speed += dist * 0.15;
+            lastX = e.clientX; lastY = e.clientY;
+        });
+
+        setInterval(() => { if (isStarted && speed > 60) triggerAll(); }, 3000);
     </script>
 </body>
 </html>
