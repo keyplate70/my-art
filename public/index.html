@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interactive Art - Final Fix</title>
+    <title>Hybrid Layout Art</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; height: 100vh; font-family: 'Courier New', Courier, monospace; touch-action: none; display: flex; flex-direction: column; }
-        #art-section { flex: 6; width: 100%; position: relative; overflow: hidden; }
-        #text-section { flex: 4; width: 100%; display: flex; flex-direction: column; justify-content: center; padding-left: 10vw; background: #121212; z-index: 10; gap: 1.5vh; box-sizing: border-box; }
-        .word-item { color: #F7F8F6; font-size: clamp(12px, 4vw, 20px); letter-spacing: 0.15em; font-weight: bold; border-left: 3px solid rgba(247, 248, 246, 0.4); padding-left: 15px; white-space: nowrap; text-transform: uppercase; }
+        
+        /* [기본: PC 모드] - 이미지가 전체를 채우고 텍스트가 위에 뜸 */
+        #art-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        #text-section { position: absolute; left: 5%; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 25px; pointer-events: none; }
+        
+        /* [모바일 모드] - 768px 이하일 때 분리형으로 변경 */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #art-section { position: relative; flex: 6; height: auto; }
+            #text-section { 
+                position: relative; flex: 4; left: 0; top: 0; transform: none; 
+                padding-left: 10vw; background: #121212; justify-content: center; gap: 1.5vh;
+            }
+        }
+
+        .word-item { color: #F7F8F6; font-size: clamp(12px, 4vw, 24px); letter-spacing: 0.15em; font-weight: bold; border-left: 3px solid rgba(247, 248, 246, 0.4); padding-left: 15px; white-space: nowrap; text-transform: uppercase; }
         .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.04; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
         @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(5%,5%); } }
     </style>
@@ -34,18 +47,14 @@
 
         const artSection = document.getElementById('art-section');
         const app = new PIXI.Application({ 
-            backgroundColor: 0x121212, 
-            antialias: true,
-            resolution: window.devicePixelRatio || 1, 
-            autoDensity: true,
+            backgroundColor: 0x121212, antialias: true,
+            resolution: window.devicePixelRatio || 1, autoDensity: true,
             resizeTo: artSection 
         });
         artSection.appendChild(app.view);
 
-        // [핵심 수정] 이미지 텍스처 로드 시도
         const texture = PIXI.Texture.from('1.png');
 
-        // 이미지가 로드된 후 실행될 로직
         texture.baseTexture.on('loaded', () => {
             const sprite = new PIXI.Sprite(texture);
             sprite.anchor.set(0.5);
@@ -67,16 +76,14 @@
             window.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
 
             app.ticker.add(() => {
-                // 상단 영역의 정중앙에 배치
                 sprite.x = app.screen.width / 2;
                 sprite.y = app.screen.height / 2;
 
-                // 반응형 크기 조절
-                const margin = 0.8;
+                // 화면 크기에 따른 스케일 차별화
+                const margin = window.innerWidth < 768 ? 0.8 : 0.65;
                 const scale = Math.min((app.screen.width * margin) / texture.width, (app.screen.height * margin) / texture.height);
                 sprite.scale.set(scale);
 
-                // 필터 강도 조절
                 blurFilter.blur = Math.min(speed * 0.3, 15);
                 noiseFilter.noise = Math.min(speed * 0.01, 0.5);
                 noiseFilter.seed = Math.random();
@@ -84,12 +91,7 @@
             });
         });
 
-        // 이미지가 없을 경우 에러 로그 출력
-        texture.baseTexture.on('error', () => {
-            console.error("1.png 파일을 찾을 수 없습니다. 경로를 확인해주세요.");
-            document.getElementById('word-1').innerText = "ERROR: FILE NOT FOUND";
-        });
-
+        // 셔플 로직은 동일하게 유지
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
             const currentGroup = groups[elementId];
