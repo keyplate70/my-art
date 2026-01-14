@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Deep Dark Mode</title>
+    <title>Interactive Art - Bright Typography</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { 
@@ -18,16 +18,16 @@
             display: flex; flex-direction: column; gap: 30px;
         }
         .word-item {
-            /* 기본 스타일: #111111 적용 */
-            color: #111111; 
+            /* 기본 스타일: #F7F8F6 적용 (매우 밝은 아이보리 화이트) */
+            color: #F7F8F6; 
             font-size: 15px; 
             letter-spacing: 3px;
             font-weight: bold;
-            border-left: 4px solid rgba(255, 255, 255, 0.05); /* 선은 아주 살짝만 보이게 */
+            border-left: 4px solid rgba(247, 248, 246, 0.2); /* 선도 텍스트색에 맞춰 연하게 */
             padding-left: 25px;
             min-width: 500px;
             text-transform: uppercase;
-            transition: color 0.5s ease;
+            transition: color 0.3s ease;
         }
         .grain {
             position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
@@ -44,10 +44,10 @@
 <body>
     <div class="grain"></div>
     <div class="word-container">
-        <div id="word-1" class="word-item">--------</div>
-        <div id="word-2" class="word-item">--------</div>
-        <div id="word-3" class="word-item">--------</div>
-        <div id="word-4" class="word-item">--------</div>
+        <div id="word-1" class="word-item">LOADING...</div>
+        <div id="word-2" class="word-item">LOADING...</div>
+        <div id="word-3" class="word-item">LOADING...</div>
+        <div id="word-4" class="word-item">LOADING...</div>
     </div>
     <div id="art-container"></div>
 
@@ -67,8 +67,8 @@
                     for(let i=0; i<10; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
                     element.innerText = randomStr;
                     
-                    // 애니메이션 중 색상: #0F0F0F 적용
-                    element.style.color = "#0F0F0F"; 
+                    // 애니메이션 중 색상: #F9F9F9 적용 (순백색에 가까운 화이트)
+                    element.style.color = "#F9F9F9"; 
                     
                     iterations++;
                     if (iterations >= maxIterations) {
@@ -77,8 +77,8 @@
                         const w2 = words[Math.floor(Math.random() * words.length)];
                         element.innerText = `${w1} : ${w2}`;
                         
-                        // 결과값 색상: #111111로 복귀
-                        element.style.color = "#111111"; 
+                        // 결과값 색상: #F7F8F6로 복귀
+                        element.style.color = "#F7F8F6"; 
                     }
                 }, 40);
             }, delay);
