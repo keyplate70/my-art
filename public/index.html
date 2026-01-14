@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Art - Motion Blur Fixed</title>
+    <title>Interactive Art - Noise & Blur</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #121212; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
         .word-container { position: fixed; left: 5%; top: 50%; transform: translateY(-50%); z-index: 10; pointer-events: none; display: flex; flex-direction: column; gap: 25px; }
         .word-item { color: #F7F8F6; font-size: 24px; letter-spacing: 3px; font-weight: bold; border-left: 4px solid rgba(247, 248, 246, 0.2); padding-left: 20px; min-width: 500px; text-transform: uppercase; white-space: nowrap; }
+        /* 배경 노이즈 오버레이 */
         .grain { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Resolution_Noise.png'); opacity: 0.04; pointer-events: none; z-index: 100; animation: noise 0.2s infinite; }
         @keyframes noise { 0% { transform: translate(0,0); } 100% { transform: translate(5%,5%); } }
     </style>
@@ -40,24 +41,26 @@
         });
         document.getElementById('art-container').appendChild(app.view);
 
-        // 이미지 경로 확인: '1.png'가 index.html과 같은 폴더에 있어야 합니다.
         const sprite = PIXI.Sprite.from('1.png');
         sprite.anchor.set(0.5);
         app.stage.addChild(sprite);
 
-        // 기본 블러 필터 (외부 라이브러리 없이 작동)
+        // --- 필터 설정 ---
         const blurFilter = new PIXI.filters.BlurFilter();
+        const noiseFilter = new PIXI.filters.NoiseFilter(); // 노이즈 필터 추가
+        
         blurFilter.blur = 0;
-        sprite.filters = [blurFilter];
+        noiseFilter.noise = 0; // 초기 노이즈 값
+        
+        sprite.filters = [blurFilter, noiseFilter];
 
         let lastMouseX = 0, lastMouseY = 0;
         let mouseSpeed = 0;
 
         window.addEventListener('mousemove', (e) => {
-            // 마우스 이동 거리(속도) 계산
             const dx = e.clientX - lastMouseX;
             const dy = e.clientY - lastMouseY;
-            mouseSpeed = Math.sqrt(dx * dx + dy * dy); // 이동 속도 산출
+            mouseSpeed = Math.sqrt(dx * dx + dy * dy); 
             
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
@@ -71,18 +74,22 @@
                 sprite.scale.set(scale);
             }
 
-            // 마우스 속도에 따라 블러 강도 조절 (최대 15)
-            const targetBlur = Math.min(mouseSpeed * 0.5, 15);
-            blurFilter.blur += (targetBlur - blurFilter.blur) * 0.1; // 부드러운 변화
-            
+            // 1. 블러 업데이트 (최대 12)
+            const targetBlur = Math.min(mouseSpeed * 0.4, 12);
+            blurFilter.blur += (targetBlur - blurFilter.blur) * 0.1;
+
+            // 2. 노이즈 업데이트 (최대 0.5)
+            // 마우스를 움직일 때만 노이즈가 지지직거리며 발생합니다.
+            const targetNoise = Math.min(mouseSpeed * 0.01, 0.5);
+            noiseFilter.noise = targetNoise; 
+            noiseFilter.seed = Math.random(); // 노이즈가 매 프레임 변하도록 설정
+
             // 속도 감쇄
-            mouseSpeed *= 0.9;
-            
-            // 이미지 컬러 화이트 고정
+            mouseSpeed *= 0.85;
             sprite.tint = 0xFFFFFF;
         });
 
-        // --- 단어 셔플 로직 (5초 리셋) ---
+        // --- 단어 셔플 로직 ---
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         function startSlotMachine(elementId, delay) {
             const element = document.getElementById(elementId);
