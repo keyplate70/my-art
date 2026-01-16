@@ -2,14 +2,16 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Perfect Shape - Volume Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Perfect Shape - Touch & Volume</title>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
             cursor: grab; font-family: 'Pretendard', sans-serif; -webkit-font-smoothing: antialiased;
+            /* 모바일에서 스크롤 및 새로고침 방지 */
+            touch-action: none;
         }
         canvas { position: fixed; top: 0; left: 0; filter: contrast(130%) brightness(110%); }
 
@@ -38,7 +40,7 @@
 <body>
     <div id="message-ui">
         <h1>"가장 완벽한 도형 안에 갇힌 것을 환영합니다."</h1>
-        <p id="sub-msg">화면을 클릭하면 공간의 소리가 깨어납니다.</p>
+        <p id="sub-msg">화면을 클릭(터치)하면 공간의 소리가 깨어납니다.</p>
     </div>
 
     <div id="data-stream">
@@ -69,9 +71,7 @@
                 filter.type = 'lowpass';
                 filter.frequency.value = 150 + (i * 100);
                 
-                // 초기 볼륨은 0으로 시작
                 gain.gain.value = 0;
-                
                 lfo.frequency.value = 0.1 + (i * 0.05);
                 lfoGain.gain.value = 0.04; 
                 
@@ -84,8 +84,7 @@
                 osc.start();
                 lfo.start();
 
-                // [중요: 볼륨 조절] 
-                // 아래 0.08 숫자를 높이면 소리가 커지고, 낮추면 작아집니다. (0.0 ~ 1.0 권장)
+                // 볼륨 설정 (현재 0.3)
                 gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 3);
             });
             document.getElementById('sub-msg').innerText = "그저 바라보기만 하십시오.";
@@ -97,7 +96,7 @@
         let width, height, baseSize, time = 0;
         let cameraZ = 1800, targetCameraZ = 1800;
         let rotY = 0, targetRotY = 0, rotX = 0, targetRotX = 0;
-        let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+        let isDragging = false, lastX = 0, lastY = 0;
         
         let vertices = [], edges = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];
         const particles = [], particleCount = 450;
@@ -136,26 +135,41 @@
             preRenderGlow();
         }
 
-        window.addEventListener('mousedown', e => {
+        // 마우스 & 터치 공통 핸들러
+        function handleStart(x, y) {
             initSound();
             isDragging = true;
-            lastMouseX = e.clientX; 
-            lastMouseY = e.clientY;
-        });
+            lastX = x;
+            lastY = y;
+        }
 
-        window.addEventListener('mousemove', e => {
+        function handleMove(x, y) {
             if (!isDragging) return;
-            targetRotY += (e.clientX - lastMouseX) * 0.005;
-            targetRotX += (e.clientY - lastMouseY) * 0.005;
+            targetRotY += (x - lastX) * 0.005;
+            targetRotX += (y - lastY) * 0.005;
             targetRotX = Math.max(-0.8, Math.min(0.8, targetRotX));
-            lastMouseX = e.clientX; 
-            lastMouseY = e.clientY;
-        });
+            lastX = x;
+            lastY = y;
+        }
 
+        // [이벤트 추가] 마우스
+        window.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
         window.addEventListener('mouseup', () => isDragging = false);
+
+        // [이벤트 추가] 터치 (모바일 전용)
+        window.addEventListener('touchstart', e => {
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        window.addEventListener('touchmove', e => {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        window.addEventListener('touchend', () => isDragging = false);
+
         window.addEventListener('wheel', e => { 
             targetCameraZ = Math.max(-500, Math.min(targetCameraZ + e.deltaY * 1.5, 15000)); 
         }, { passive: true });
+        
         window.addEventListener('resize', resize);
         resize();
 
