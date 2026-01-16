@@ -3,82 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Breathing Cosmic Apex</title>
+    <title>The Perfect Shape - Apex Sound</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; cursor: grab; }
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+        body { 
+            margin: 0; padding: 0; overflow: hidden; background-color: #000; 
+            cursor: grab; font-family: 'Pretendard', sans-serif; -webkit-font-smoothing: antialiased;
+        }
         canvas { position: fixed; top: 0; left: 0; filter: contrast(130%) brightness(110%); }
+
+        #message-ui {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; text-align: center; pointer-events: none; z-index: 10;
+            letter-spacing: -0.02em; width: 100%; opacity: 0.8;
+            animation: text-resonance 4s infinite ease-in-out;
+        }
+        #message-ui h1 { font-size: clamp(18px, 2.5vw, 28px); margin: 0 0 10px 0; font-weight: 800; }
+        #message-ui p { font-size: clamp(13px, 1.2vw, 16px); margin: 0; opacity: 0.5; font-weight: 300; }
+
+        @keyframes text-resonance {
+            0%, 100% { opacity: 0.6; text-shadow: 0 0 10px rgba(255, 255, 255, 0.1); }
+            50% { opacity: 1; text-shadow: 0 0 30px rgba(255, 255, 255, 0.4), 0 0 50px rgba(255, 255, 255, 0.2); }
+        }
+
+        #data-stream {
+            position: fixed; top: 50px; right: 50px; font-family: 'Courier New', monospace; 
+            font-size: 11px; color: rgba(255, 255, 255, 0.25); text-align: right; z-index: 10;
+        }
+        .data-row { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 6px; }
+        .data-value { color: rgba(255, 255, 255, 0.45); width: 80px; text-align: left; }
     </style>
 </head>
 <body>
+    <div id="message-ui">
+        <h1>"가장 완벽한 도형 안에 갇힌 것을 환영합니다."</h1>
+        <p>화면을 클릭하면 공간의 소리가 깨어납니다.</p>
+    </div>
+
+    <div id="data-stream">
+        <div class="data-row"><span>SYNC_DELTA</span> <span id="delta-val" class="data-value">0.0000</span></div>
+        <div class="data-row"><span>VAR_INDEX</span> <span id="var-val" class="data-value">1.0000</span></div>
+        <div class="data-row"><span>AUDIO_FRQ</span> <span id="freq-val" class="data-value">LOW</span></div>
+    </div>
+
     <canvas id="canvas"></canvas>
 
     <script>
+        // --- [1] Web Audio API: 3개 음 기반 우주적 로우파이 사운드 ---
+        let audioCtx;
+        function initSound() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 3개의 낮은 주파수 (우주적 베이스 톤)
+            const frequencies = [55, 82.4, 110]; // A1, E2, A2 (완전 5도 중심의 안정적 음색)
+            
+            frequencies.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const lfo = audioCtx.createOscillator(); // 볼륨에 변화를 줄 저주파 발진기
+                const lfoGain = audioCtx.createGain();
+
+                osc.type = i === 1 ? 'triangle' : 'sine'; // 부드러운 음색 섞기
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+                // 로우패스 필터로 먹먹한(Lo-Fi) 느낌 추가
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 200 + (i * 100);
+
+                gain.gain.value = 0;
+                
+                // 유기적인 볼륨 변화 (호흡하듯)
+                lfo.frequency.value = 0.1 + (i * 0.05);
+                lfoGain.gain.value = 0.05; 
+                
+                lfo.connect(lfoGain);
+                lfoGain.connect(gain.gain);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                lfo.start();
+                
+                // 서서히 페이드 인
+                gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 2);
+            });
+            document.querySelector('#message-ui p').innerText = "그저 바라보기만 하십시오.";
+        }
+
+        window.addEventListener('mousedown', () => {
+            initSound();
+            isDragging = true;
+        });
+
+        // --- [2] 기존 비주얼 엔진 ---
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { alpha: false });
-
-        let width, height, baseSize;
-        let time = 0;
-        
+        let width, height, baseSize, time = 0;
         let cameraZ = 1800, targetCameraZ = 1800;
-        let rotY = 0, targetRotY = 0;
-        let rotX = 0, targetRotX = 0;
-        let isDragging = false, lastMouseX, lastMouseY;
-        
-        let vertices = [];
-        const edges = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];
-        
-        // --- 3번 효과: 입자(Star Dust) 데이터 생성 ---
-        const particles = [];
-        const particleCount = 400; // 입자 개수
-
+        let rotY = 0, targetRotY = 0, rotX = 0, targetRotX = 0;
+        let lastMouseX, lastMouseY;
+        let vertices = [], edges = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];
+        const particles = [], particleCount = 450;
         const glowCanvas = document.createElement('canvas');
         const gCtx = glowCanvas.getContext('2d');
-        
+
         function preRenderGlow() {
-            const size = 1000;
-            glowCanvas.width = size;
-            glowCanvas.height = size;
+            const size = 1000; glowCanvas.width = size; glowCanvas.height = size;
             const grad = gCtx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
             grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            grad.addColorStop(0.1, 'rgba(255, 255, 255, 0.25)');
-            grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.03)');
+            grad.addColorStop(0.1, 'rgba(255, 255, 255, 0.2)');
+            grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.02)');
             grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            gCtx.fillStyle = grad;
-            gCtx.fillRect(0, 0, size, size);
+            gCtx.fillStyle = grad; gCtx.fillRect(0, 0, size, size);
         }
 
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
             baseSize = Math.max(width, height) * 7; 
-            
             const s = baseSize * 0.8;
             vertices = [
-                {x: 0, y: -s, z: 0},
-                {x: s * Math.sqrt(8/9), y: s/3, z: 0},
+                {x: 0, y: -s, z: 0}, {x: s * Math.sqrt(8/9), y: s/3, z: 0},
                 {x: -s * Math.sqrt(2/9), y: s/3, z: s * Math.sqrt(2/3)},
                 {x: -s * Math.sqrt(2/9), y: s/3, z: -s * Math.sqrt(2/3)}
             ];
-
-            // 입자를 삼각뿔 주변 공간에 무작위로 배치
             particles.length = 0;
             for(let i=0; i<particleCount; i++) {
                 particles.push({
-                    x: (Math.random() - 0.5) * baseSize * 2.5,
-                    y: (Math.random() - 0.5) * baseSize * 2.5,
-                    z: (Math.random() - 0.5) * baseSize * 2.5,
-                    size: Math.random() * 2 + 1
+                    x: (Math.random() - 0.5) * baseSize * 2.8,
+                    y: (Math.random() - 0.5) * baseSize * 2.8,
+                    z: (Math.random() - 0.5) * baseSize * 2.8,
+                    size: Math.random() * 2 + 0.5
                 });
             }
-
             preRenderGlow();
         }
 
-        window.addEventListener('wheel', e => { 
-            targetCameraZ = Math.max(-500, Math.min(targetCameraZ + e.deltaY * 1.5, 15000)); 
-        }, { passive: true });
-        
-        window.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+        window.addEventListener('wheel', e => { targetCameraZ = Math.max(-500, Math.min(targetCameraZ + e.deltaY * 1.5, 15000)); }, { passive: true });
         window.addEventListener('mousemove', e => {
             if (!isDragging) return;
             targetRotY += (e.clientX - lastMouseX) * 0.005;
@@ -99,67 +165,55 @@
 
         function project(v) {
             cameraZ += (targetCameraZ - cameraZ) * 0.05;
-            rotY += (targetRotY - rotY) * 0.05;
-            rotX += (targetRotX - rotX) * 0.05;
+            rotY += (targetRotY - rotY) * 0.02; rotX += (targetRotX - rotX) * 0.02;
             const perspective = 1200;
             const scale = perspective / (perspective + v.z + cameraZ);
             return { x: v.x * scale + width * 0.5, y: v.y * scale + height * 0.5, scale: scale };
         }
 
-        function drawGrandLight(p1, p2, scale, breath) {
-            if (scale <= 0) return;
-            const dist = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
-            const steps = Math.min(dist / 0.5, 300); 
-            
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            for (let i = 0; i <= steps; i++) {
-                const ratio = i / steps;
-                const x = p1.x + (p2.x - p1.x) * ratio;
-                const y = p1.y + (p2.y - p1.y) * ratio;
-                // --- 1번 효과: 숨쉬는 크기 계산 ---
-                const s = 1400 * scale * breath; 
-                ctx.drawImage(glowCanvas, x - s/2, y - s/2, s, s);
-            }
-            ctx.restore();
-        }
+        const deltaEl = document.getElementById('delta-val');
+        const varEl = document.getElementById('var-val');
+        const coordEl = document.getElementById('freq-val');
 
         function draw() {
             time += 0.003; 
+            const breath = 1 + Math.sin(time * 2.5) * 0.15;
             
-            // --- 1번 효과: 호흡 주기 (0.8 ~ 1.2 사이를 왕복) ---
-            const breath = 1 + Math.sin(time * 2) * 0.2;
-            
-            const autoRotY = time * 0.15;
-            const autoRotX = Math.sin(time * 0.4) * 0.15;
+            // UI 업데이트
+            deltaEl.innerText = (Math.random() * 0.004).toFixed(4);
+            varEl.innerText = (breath).toFixed(4);
+            coordEl.innerText = breath > 1 ? "STABLE" : "DEEP";
 
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
+            const currentRotX = rotX + Math.sin(time * 0.3) * 0.1;
+            const currentRotY = rotY + time * 0.1;
 
-            const currentRotX = rotX + autoRotX;
-            const currentRotY = rotY + autoRotY;
-
-            // 3번 효과: 배경 입자 먼저 그리기
-            ctx.fillStyle = "white";
             particles.forEach(p => {
                 const rotated = rotate3D(p, currentRotX, currentRotY);
                 const proj = project(rotated);
                 if (proj.scale > 0) {
-                    const alpha = Math.min(1, proj.scale * 2);
-                    ctx.globalAlpha = alpha;
-                    ctx.beginPath();
-                    ctx.arc(proj.x, proj.y, p.size * proj.scale, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.globalAlpha = Math.min(0.8, proj.scale * 1.5);
+                    ctx.fillStyle = "white";
+                    ctx.beginPath(); ctx.arc(proj.x, proj.y, p.size * proj.scale, 0, Math.PI * 2); ctx.fill();
                 }
             });
-            ctx.globalAlpha = 1;
 
-            // 삼각뿔 그리기
+            ctx.globalAlpha = 1;
             const proj = vertices.map(v => project(rotate3D(v, currentRotX, currentRotY)));
-            
             edges.forEach(edge => {
                 const p1 = proj[edge[0]], p2 = proj[edge[1]];
-                drawGrandLight(p1, p2, (p1.scale + p2.scale) / 2, breath);
+                const dist = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+                const steps = Math.min(dist / 0.5, 300); 
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (let i = 0; i <= steps; i++) {
+                    const ratio = i / steps;
+                    const x = p1.x + (p2.x - p1.x) * ratio;
+                    const y = p1.y + (p2.y - p1.y) * ratio;
+                    const s = 1400 * ((p1.scale + p2.scale)/2) * breath; 
+                    ctx.drawImage(glowCanvas, x - s/2, y - s/2, s, s);
+                }
+                ctx.restore();
             });
 
             ctx.save();
@@ -167,14 +221,11 @@
             edges.forEach(edge => {
                 const p1 = proj[edge[0]], p2 = proj[edge[1]];
                 ctx.beginPath();
-                // 선의 불투명도도 호흡에 맞춰 변화
-                ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.6, p1.scale) * breath})`;
-                ctx.lineWidth = 1.3 * breath;
-                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.5, p1.scale) * breath})`;
+                ctx.lineWidth = 1.2 * breath;
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             });
             ctx.restore();
-
             requestAnimationFrame(draw);
         }
         draw();
