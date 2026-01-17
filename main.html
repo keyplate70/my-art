@@ -167,3 +167,28 @@
             });
 
             const proj = vertices.map(v => project(v));
+            ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
+            edges.forEach(edge => {
+                const p1 = proj[edge[0]], p2 = proj[edge[1]];
+                const dist = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+                const steps = Math.min(dist / 1.2, 150); 
+                for (let i = 0; i <= steps; i++) {
+                    const ratio = i / steps;
+                    const x = p1.x + (p2.x - p1.x) * ratio;
+                    const y = p1.y + (p2.y - p1.y) * ratio;
+                    // 모바일에서는 광원 입자의 크기를 조절하여 선명도 유지
+                    const s = (isMobile ? 800 : 1100) * ((p1.scale + p2.scale)/2) * breath;
+                    ctx.drawImage(glowCanvas, x - s/2, y - s/2, s, s);
+                }
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 * breath})`;
+                ctx.lineWidth = 1.0; 
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            });
+            ctx.globalCompositeOperation = 'source-over';
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
