@@ -3,207 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Perfect Shape - Compact Version</title>
+    <title>The Perfect Shape - Sharp & Clean</title>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-
-        body { 
-            margin: 0; padding: 0; overflow: hidden; background-color: #000; 
-            cursor: grab; font-family: 'Pretendard', sans-serif; -webkit-font-smoothing: antialiased;
-            touch-action: none;
-        }
-        canvas { position: fixed; top: 0; left: 0; filter: contrast(130%) brightness(110%); }
-
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; cursor: grab; font-family: 'Pretendard', sans-serif; touch-action: none; }
+        canvas { position: fixed; top: 0; left: 0; filter: contrast(120%) brightness(105%); }
         #message-ui {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            position: fixed; bottom: 8%; left: 50%; transform: translateX(-50%);
             color: #fff; text-align: center; pointer-events: none; z-index: 10;
-            letter-spacing: -0.02em; width: 90%; opacity: 0.8;
-            animation: text-resonance 4s infinite ease-in-out;
+            letter-spacing: -0.02em; width: 100%; opacity: 0.7;
         }
-        #message-ui h1 { font-size: clamp(15px, 3.5vw, 24px); margin: 0 0 10px 0; font-weight: 800; line-height: 1.4; }
-        #message-ui p { font-size: clamp(10px, 2.2vw, 14px); margin: 0; opacity: 0.4; font-weight: 300; }
-
-        @keyframes text-resonance {
-            0%, 100% { opacity: 0.5; text-shadow: 0 0 10px rgba(255, 255, 255, 0.1); }
-            50% { opacity: 0.9; text-shadow: 0 0 30px rgba(255, 255, 255, 0.4); }
-        }
-
+        #message-ui h1 { font-size: clamp(14px, 3vw, 20px); font-weight: 700; margin-bottom: 5px; }
+        #message-ui p { font-size: 11px; opacity: 0.4; font-weight: 300; }
         #data-stream {
-            position: fixed; top: 25px; right: 25px; font-family: 'Courier New', monospace; 
-            font-size: 10px; color: rgba(255, 255, 255, 0.2); text-align: right; z-index: 10;
+            position: fixed; top: 25px; left: 25px; font-family: 'Courier New', monospace; 
+            font-size: 9px; color: rgba(255, 255, 255, 0.15); text-align: left;
         }
-        .data-row { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
-        .data-value { color: rgba(255, 255, 255, 0.4); width: 55px; text-align: left; }
     </style>
 </head>
 <body>
     <div id="message-ui">
-        <h1>"가장 완벽한 도형 안에 갇힌 것을 환영합니다."</h1>
-        <p id="sub-msg">화면을 클릭하면 공간의 소리가 깨어납니다.</p>
+        <h1>"빛을 걷어내고 본질에 집중합니다."</h1>
+        <p id="sub-msg">화면을 터치하여 공간을 깨우십시오.</p>
     </div>
-
     <div id="data-stream">
-        <div class="data-row"><span>SYNC_DELTA</span> <span id="delta-val" class="data-value">0.0000</span></div>
-        <div class="data-row"><span>VAR_INDEX</span> <span id="var-val" class="data-value">1.0000</span></div>
-        <div class="data-row"><span>AUDIO_FRQ</span> <span id="freq-val" class="data-value">LOW</span></div>
+        <div>SYNC_DLT <span id="delta-val" style="color:rgba(255,255,255,0.4)">0.0000</span></div>
+        <div>VAR_IDX <span id="var-val" style="color:rgba(255,255,255,0.4)">1.0000</span></div>
     </div>
-
     <canvas id="canvas"></canvas>
 
     <script>
-        // --- [1] Web Audio API 사운드 설정 ---
         let audioCtx;
         function initSound() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const frequencies = [55, 82.4, 110]; 
-            frequencies.forEach((freq, i) => {
+            [55, 82.4].forEach((freq) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                const filter = audioCtx.createBiquadFilter();
-                osc.type = i === 1 ? 'triangle' : 'sine';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                filter.type = 'lowpass';
-                filter.frequency.value = 150 + (i * 100);
+                osc.frequency.value = freq;
                 gain.gain.value = 0;
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 3);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 3);
             });
-            document.getElementById('sub-msg').innerText = "그저 바라보기만 하십시오.";
+            document.getElementById('sub-msg').innerText = "공간의 소리가 정렬되었습니다.";
         }
 
-        // --- [2] 비주얼 엔진 ---
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { alpha: false });
         let width, height, baseSize, time = 0;
-        
-        // 카메라 거리 대폭 증가 (모바일에서 더 멀리 보이게 함)
         const isMobile = window.innerWidth < 768;
-        let cameraZ = isMobile ? 6500 : 1800; 
+
+        // 카메라 거리를 멀리하여 광원이 뭉치는 현상 방지
+        let cameraZ = isMobile ? 5000 : 1800;
         let targetCameraZ = cameraZ;
-        
         let rotY = 0, targetRotY = 0, rotX = 0, targetRotX = 0;
         let isDragging = false, lastX = 0, lastY = 0;
-        
+
         let vertices = [], edges = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];
         const particles = [];
         const glowCanvas = document.createElement('canvas');
         const gCtx = glowCanvas.getContext('2d');
 
         function preRenderGlow() {
-            const size = 1000; glowCanvas.width = size; glowCanvas.height = size;
+            const size = 600; // 광원 캔버스 사이즈 축소 (더 선명하게)
+            glowCanvas.width = size; glowCanvas.height = size;
             const grad = gCtx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            grad.addColorStop(0.1, 'rgba(255, 255, 255, 0.2)');
-            grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.02)');
-            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); // 중심 밝기 낮춤
+            grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.15)');
+            grad.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
             gCtx.fillStyle = grad; gCtx.fillRect(0, 0, size, size);
         }
 
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
-            
-            // [사이즈 축소 핵심] 모바일 비율을 2.5에서 1.5로 대폭 축소
-            const currentRatio = width < 768 ? 1.5 : 7;
-            baseSize = Math.max(width, height) * currentRatio; 
-            
+            const currentRatio = isMobile ? 1.8 : 7;
+            baseSize = Math.max(width, height) * currentRatio;
             const s = baseSize * 0.8;
-            vertices = [
-                {x: 0, y: -s, z: 0}, {x: s * Math.sqrt(8/9), y: s/3, z: 0},
-                {x: -s * Math.sqrt(2/9), y: s/3, z: s * Math.sqrt(2/3)},
-                {x: -s * Math.sqrt(2/9), y: s/3, z: -s * Math.sqrt(2/3)}
-            ];
-            
+            vertices = [{x: 0, y: -s, z: 0}, {x: s * Math.sqrt(8/9), y: s/3, z: 0}, {x: -s * Math.sqrt(2/9), y: s/3, z: s * Math.sqrt(2/3)}, {x: -s * Math.sqrt(2/9), y: s/3, z: -s * Math.sqrt(2/3)}];
             particles.length = 0;
-            const pCount = width < 768 ? 200 : 450;
-            for(let i=0; i<pCount; i++) {
-                particles.push({
-                    x: (Math.random() - 0.5) * baseSize * 4,
-                    y: (Math.random() - 0.5) * baseSize * 4,
-                    z: (Math.random() - 0.5) * baseSize * 4,
-                    size: Math.random() * 1.5 + 0.5
-                });
+            for(let i=0; i<(isMobile?150:400); i++) {
+                particles.push({x:(Math.random()-0.5)*baseSize*4, y:(Math.random()-0.5)*baseSize*4, z:(Math.random()-0.5)*baseSize*4, size:Math.random()*1.2});
             }
             preRenderGlow();
         }
 
-        // 인터랙션 핸들러
         function handleStart(x, y) { initSound(); isDragging = true; lastX = x; lastY = y; }
-        function handleMove(x, y) {
-            if (!isDragging) return;
-            targetRotY += (x - lastX) * 0.005;
-            targetRotX += (y - lastY) * 0.005;
-            targetRotX = Math.max(-0.8, Math.min(0.8, targetRotX));
-            lastX = x; lastY = y;
-        }
+        function handleMove(x, y) { if (!isDragging) return; targetRotY += (x - lastX) * 0.005; targetRotX += (y - lastY) * 0.005; lastX = x; lastY = y; }
 
-        window.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('touchstart', e => { handleStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        window.addEventListener('touchstart', e => { handleStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
         window.addEventListener('touchmove', e => { handleMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
         window.addEventListener('touchend', () => isDragging = false);
-        window.addEventListener('wheel', e => { targetCameraZ = Math.max(500, Math.min(targetCameraZ + e.deltaY * 2, 15000)); }, { passive: true });
-        
         window.addEventListener('resize', resize);
         resize();
 
-        function rotate3D(v, angleX, angleY) {
-            let cosY = Math.cos(angleY), sinY = Math.sin(angleY);
-            let x1 = v.x * cosY - v.z * sinY, z1 = v.x * sinY + v.z * cosY;
-            let cosX = Math.cos(angleX), sinX = Math.sin(angleX);
-            return { x: x1, y: v.y * cosX - z1 * sinX, z: v.y * sinX + z1 * cosX };
-        }
-
         function project(v) {
             cameraZ += (targetCameraZ - cameraZ) * 0.05;
-            rotY += (targetRotY - rotY) * 0.02; 
-            rotX += (targetRotX - rotX) * 0.02;
-            const perspective = 1200;
-            const scale = perspective / (perspective + v.z + cameraZ);
-            return { x: v.x * scale + width * 0.5, y: v.y * scale + height * 0.5, scale: scale };
+            rotY += (targetRotY - rotY) * 0.02; rotX += (targetRotX - rotX) * 0.02;
+            const p = 1200;
+            const cosY = Math.cos(rotY + time*0.1), sinY = Math.sin(rotY + time*0.1);
+            const cosX = Math.cos(rotX + Math.sin(time*0.3)*0.1), sinX = Math.sin(rotX + Math.sin(time*0.3)*0.1);
+            let x1 = v.x * cosY - v.z * sinY, z1 = v.x * sinY + v.z * cosY;
+            let y2 = v.y * cosX - z1 * sinX, z2 = v.y * sinX + z1 * cosX;
+            const scale = p / (p + z2 + cameraZ);
+            return { x: x1 * scale + width * 0.5, y: y2 * scale + height * 0.5, scale: scale };
         }
 
         function draw() {
-            time += 0.003; 
-            const breath = 1 + Math.sin(time * 2.5) * 0.15;
-            document.getElementById('delta-val').innerText = (Math.random() * 0.004).toFixed(4);
-            document.getElementById('var-val').innerText = (breath).toFixed(4);
-            document.getElementById('freq-val').innerText = breath > 1 ? "HIGH" : "LOW";
-
+            time += 0.003;
+            const breath = 1 + Math.sin(time * 2.5) * 0.1;
             ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
-            const curRotX = rotX + Math.sin(time * 0.3) * 0.1;
-            const curRotY = rotY + time * 0.1;
 
             particles.forEach(p => {
-                const proj = project(rotate3D(p, curRotX, curRotY));
+                const proj = project(p);
                 if (proj.scale > 0) {
-                    ctx.globalAlpha = Math.min(0.6, proj.scale * 2);
+                    ctx.globalAlpha = Math.min(0.4, proj.scale * 1.5);
                     ctx.fillStyle = "white";
-                    ctx.beginPath(); ctx.arc(proj.x, proj.y, p.size * proj.scale, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(proj.x, proj.y, p.size * proj.scale, 0, 7); ctx.fill();
                 }
             });
 
-            const proj = vertices.map(v => project(rotate3D(v, curRotX, curRotY)));
+            const proj = vertices.map(v => project(v));
             ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
             edges.forEach(edge => {
                 const p1 = proj[edge[0]], p2 = proj[edge[1]];
                 const dist = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
-                const steps = Math.min(dist / 0.8, 200); 
+                const steps = Math.min(dist / 1.5, 120); // 광원 스텝 수 감소 (더 깨끗하게)
+                
                 for (let i = 0; i <= steps; i++) {
                     const ratio = i / steps;
                     const x = p1.x + (p2.x - p1.x) * ratio;
                     const y = p1.y + (p2.y - p1.y) * ratio;
-                    const s = 1100 * ((p1.scale + p2.scale)/2) * breath; 
+                    const s = (isMobile?600:1000) * ((p1.scale + p2.scale)/2) * breath; // 광원 크기 대폭 축소
                     ctx.drawImage(glowCanvas, x - s/2, y - s/2, s, s);
                 }
                 ctx.beginPath();
-                ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.4, p1.scale) * breath})`;
-                ctx.lineWidth = 1 * breath;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 * breath})`; // 선 투명도 조절
+                ctx.lineWidth = 0.8; 
                 ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             });
             ctx.globalCompositeOperation = 'source-over';
